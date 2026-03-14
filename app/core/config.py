@@ -1,4 +1,3 @@
-from pydantic import AnyUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,7 +10,6 @@ class DataBaseSettings(AppBaseSettings):
     postgres_password: str
     postgres_db: str
     postgres_host: str = "localhost"
-    vector_url: AnyUrl = Field(validation_alias="VECTOR_DB_URL")
 
     @property
     def sql_url(self) -> str:
