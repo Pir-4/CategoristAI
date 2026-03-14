@@ -1,7 +1,7 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import BaseModel
@@ -15,6 +15,6 @@ class User(BaseModel):
     email: Mapped[str] = mapped_column(String(30), unique=True)
     hashed_password: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now(UTC)
+        DateTime, server_default=func.now()
     )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
