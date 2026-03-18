@@ -1,4 +1,4 @@
-from .user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 
 __all__ = [
     "UserCreate",
