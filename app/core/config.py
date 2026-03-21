@@ -23,6 +23,9 @@ class DataBaseSettings(AppBaseSettings):
 
 class ProjectSettings(AppBaseSettings):
     app_mode: AppMode
+    log_file: str = "logs/app.log"
+    log_max_bytes: int = 10_000_000
+    log_backup_count: int = 2
 
 
 class AppSettings:
