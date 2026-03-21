@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .constants import AppMode
+
 
 class AppBaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -19,11 +21,17 @@ class DataBaseSettings(AppBaseSettings):
         )
 
 
+class ProjectSettings(AppBaseSettings):
+    app_mode: AppMode
+
+
 class AppSettings:
     data_base: DataBaseSettings
+    project: ProjectSettings
 
     def __init__(self):
         self.data_base = DataBaseSettings()
+        self.project = ProjectSettings()
 
 
 settings = AppSettings()
