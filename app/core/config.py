@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .constants import AppMode
+
 
 class AppBaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -19,11 +21,20 @@ class DataBaseSettings(AppBaseSettings):
         )
 
 
+class ProjectSettings(AppBaseSettings):
+    app_mode: AppMode
+    log_file: str = "logs/app.log"
+    log_max_bytes: int = 10_000_000
+    log_backup_count: int = 2
+
+
 class AppSettings:
     data_base: DataBaseSettings
+    project: ProjectSettings
 
     def __init__(self):
         self.data_base = DataBaseSettings()
+        self.project = ProjectSettings()
 
 
 settings = AppSettings()
