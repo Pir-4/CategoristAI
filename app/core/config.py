@@ -28,13 +28,21 @@ class ProjectSettings(AppBaseSettings):
     log_backup_count: int = 2
 
 
+class SecuritySettings(AppBaseSettings):
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+
+
 class AppSettings:
     data_base: DataBaseSettings
     project: ProjectSettings
+    security: SecuritySettings
 
     def __init__(self):
         self.data_base = DataBaseSettings()
         self.project = ProjectSettings()
+        self.security = SecuritySettings()
 
 
 settings = AppSettings()
