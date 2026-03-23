@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
@@ -35,7 +36,9 @@ async def get_user(
 ) -> UserRead:
     user = await svc_get_user(session=session, user_id=user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="User not found"
+        )
     return UserRead.model_validate(user)
 
 
