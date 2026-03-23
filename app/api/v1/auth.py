@@ -41,3 +41,8 @@ async def login_user(
         )
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token)
+
+
+@router.post("/logout")
+async def logout_user():
+    return {"message": "Successfully logged out"}
