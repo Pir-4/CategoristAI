@@ -1,17 +1,17 @@
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core import AsyncSession, decode_access_token, get_session
 from app.models import User
 from app.services.user_service import get_user
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = HTTPBearer()
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_session),
 ) -> User:
     credentials_error = HTTPException(
@@ -21,7 +21,7 @@ async def get_current_user(
     )
 
     try:
-        payload = decode_access_token(token)
+        payload = decode_access_token(token.credentials)
         user_id = payload.get("sub")
         user = await get_user(session, UUID(user_id))
     except ValueError as ex:
