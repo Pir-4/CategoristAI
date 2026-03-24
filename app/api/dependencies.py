@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core import AsyncSession, decode_access_token, get_session
+from app.core import AsyncSession, UserRole, decode_access_token, get_session
 from app.models import User
 from app.services.user_service import get_user
 
@@ -29,4 +29,14 @@ async def get_current_user(
 
     if not user:
         raise credentials_error
+    return user
+
+
+async def check_admin_permission(
+    user: User = Depends(get_current_user),
+) -> User:
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden"
+        )
     return user
