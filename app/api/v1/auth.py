@@ -1,14 +1,14 @@
-from http import HTTPStatus
-
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
+from app.api.dependencies import get_current_user
 from app.core import (
     AsyncSession,
     create_access_token,
     get_session,
     verify_password,
 )
+from app.models import User
 from app.schemas import LoginRequest, TokenResponse, UserCreate
 from app.services.user_service import (
     create_user as svc_create_user,
@@ -36,7 +36,7 @@ async def login_user(
     user = await svc_get_user_by_login(session, login=r_login.login)
     if not user or not verify_password(r_login.password, user.hashed_password):
         raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User or password are incorrect",
         )
     token = create_access_token({"sub": str(user.id)})
@@ -44,5 +44,5 @@ async def login_user(
 
 
 @router.post("/logout")
-async def logout_user():
+async def logout_user(current_user: User = Depends(get_current_user)):
     return {"message": "Successfully logged out"}
