@@ -16,6 +16,12 @@ async def get_user(session: AsyncSession, user_id: UUID) -> User | None:
     return await session.get(User, user_id)
 
 
+async def get_user_by_login(session: AsyncSession, login: str) -> User | None:
+    logger.info("Get user by login: %s", login)
+    result = await session.execute(select(User).where(User.login == login))
+    return result.scalar_one_or_none()
+
+
 async def get_users(session: AsyncSession) -> list[User]:
     logger.info("Get all users")
     result = await session.execute(select(User))
