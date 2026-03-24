@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
@@ -20,11 +22,11 @@ async def get_current_user(
 
     try:
         payload = decode_access_token(token)
+        user_id = payload.get("sub")
+        user = await get_user(session, UUID(user_id))
     except ValueError as ex:
         raise credentials_error from ex
 
-    user_id = payload.get("sub")
-    user = await get_user(session, user_id)
     if not user:
         raise credentials_error
     return user
