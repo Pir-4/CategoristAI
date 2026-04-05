@@ -24,11 +24,19 @@ async def setup_db():
         await conn.run_sync(BaseModel.metadata.drop_all)
 
 
+@pytest.fixture(autouse=True)
+async def clean_db(setup_db):
+    yield
+    async with TestSessionFactory() as s:
+        for table in reversed(BaseModel.metadata.sorted_tables):
+            await s.execute(table.delete())
+        await s.commit()
+
+
 @pytest.fixture
 async def session() -> AsyncSession:
     async with TestSessionFactory() as s:
         yield s
-        await s.rollback()
 
 
 @pytest.fixture
