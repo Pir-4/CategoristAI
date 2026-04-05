@@ -9,9 +9,7 @@ from app.models import RefreshToken
 logger = logging.getLogger(__name__)
 
 
-async def save_refresh_token(
-    session: AsyncSession, user_id: UUID
-) -> RefreshToken:
+async def save_refresh_token(session: AsyncSession, user_id: UUID) -> str:
     logger.info("Creating refresh token for user with id: %s", user_id)
     new_token = RefreshToken(
         token=create_refresh_token(),
@@ -21,7 +19,7 @@ async def save_refresh_token(
     session.add(new_token)
     await session.commit()
     await session.refresh(new_token)
-    return new_token
+    return new_token.token
 
 
 async def find_refresh_token(
