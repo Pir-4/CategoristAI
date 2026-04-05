@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
@@ -9,7 +11,17 @@ from app.core import (
     verify_password,
 )
 from app.models import User
-from app.schemas import LoginRequest, TokenResponse, UserCreate
+from app.schemas import (
+    LoginRequest,
+    RefreshTokenRequest,
+    TokenResponse,
+    UserCreate,
+)
+from app.services.token_service import (
+    delete_refresh_token,
+    find_refresh_token,
+    save_refresh_token,
+)
 from app.services.user_service import (
     create_user as svc_create_user,
 )
@@ -25,8 +37,9 @@ async def register_user(
     user: UserCreate, session: AsyncSession = Depends(get_session)
 ) -> TokenResponse:
     new_user = await svc_create_user(session=session, data=user)
-    token = create_access_token({"sub": str(new_user.id)})
-    return TokenResponse(access_token=token)
+    access_token = create_access_token({"sub": str(new_user.id)})
+    refresh_token = await save_refresh_token(session, new_user.id)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/login")
@@ -39,10 +52,46 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User or password are incorrect",
         )
-    token = create_access_token({"sub": str(user.id)})
-    return TokenResponse(access_token=token)
+    access_token = create_access_token({"sub": str(user.id)})
+    refresh_token = await save_refresh_token(session, user.id)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/logout")
-async def logout_user(current_user: User = Depends(get_current_user)):
+async def logout_user(
+    r_refresh_token: RefreshTokenRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    db_rf_token = await find_refresh_token(
+        session, r_refresh_token.refresh_token
+    )
+    if not db_rf_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+    await delete_refresh_token(session, db_rf_token)
     return {"message": "Successfully logged out"}
+
+
+@router.post("/refresh")
+async def refresh_token(
+    r_refresh_token: RefreshTokenRequest,
+    session: AsyncSession = Depends(get_session),
+) -> TokenResponse:
+    db_rf_token = await find_refresh_token(
+        session, r_refresh_token.refresh_token
+    )
+    if not db_rf_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+    if db_rf_token.expires_at < datetime.now(UTC):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+        )
+    await delete_refresh_token(session, db_rf_token)
+
+    refresh_token = await save_refresh_token(session, db_rf_token.user_id)
+    access_token = create_access_token({"sub": str(db_rf_token.user_id)})
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
