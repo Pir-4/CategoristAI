@@ -11,6 +11,7 @@ class DataBaseSettings(AppBaseSettings):
     postgres_user: str
     postgres_password: str
     postgres_db: str
+    postgres_test_db: str
     postgres_host: str = "localhost"
 
     @property
@@ -18,6 +19,13 @@ class DataBaseSettings(AppBaseSettings):
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}/{self.postgres_db}"
+        )
+
+    @property
+    def test_sql_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}/{self.postgres_test_db}"
         )
 
 
