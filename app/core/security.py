@@ -1,3 +1,4 @@
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -45,3 +46,13 @@ def decode_access_token(token: str) -> dict[str, Any]:
         return payload
     except jwt.PyJWTError:
         raise ValueError("Invalid token") from None
+
+
+def create_token_expires_at() -> datetime:
+    return datetime.now(UTC) + timedelta(
+        days=settings.security.refresh_token_expire_days
+    )
+
+
+def create_refresh_token() -> str:
+    return secrets.token_urlsafe(32)
