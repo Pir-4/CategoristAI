@@ -36,6 +36,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register_user(
     user: UserCreate, session: AsyncSession = Depends(get_session)
 ) -> TokenResponse:
+    existing = await svc_get_user_by_login(session, login=user.login)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Login already taken"
+        )
     new_user = await svc_create_user(session=session, data=user)
     access_token = create_access_token({"sub": str(new_user.id)})
     refresh_token = await save_refresh_token(session, new_user.id)
