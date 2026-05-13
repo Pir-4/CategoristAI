@@ -7,7 +7,6 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
-    Text,
     UniqueConstraint,
     func,
 )
@@ -31,7 +30,7 @@ class Account(BaseModel):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(30))
     account_type: Mapped[AccountType] = mapped_column(String(20))
-    match_keywords: Mapped[str] = mapped_column(Text)
+    match_keyword: Mapped[str] = mapped_column(String(100))
     initial_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     current_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime] = mapped_column(
