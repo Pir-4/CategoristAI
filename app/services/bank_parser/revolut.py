@@ -1,13 +1,14 @@
-import logging
 from datetime import datetime
 from decimal import Decimal
+
+import structlog
 
 from app.core.constants import TransactionType
 from app.models import Account, Transaction
 
 from .base import BankParserBase
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RevolutParser(BankParserBase):

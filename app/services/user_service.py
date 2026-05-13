@@ -1,6 +1,6 @@
-import logging
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +8,7 @@ from app.core import hash_password
 from app.models import User
 from app.schemas import UserCreate, UserUpdate
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def get_user(session: AsyncSession, user_id: UUID) -> User | None:

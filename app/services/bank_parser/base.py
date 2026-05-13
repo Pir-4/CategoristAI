@@ -1,11 +1,12 @@
-import logging
 from abc import ABC, abstractmethod
 from enum import Enum
+
+import structlog
 
 from app.core.constants import AccountType, TransactionType
 from app.models import Account, Transaction
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CategoryType(Enum):
