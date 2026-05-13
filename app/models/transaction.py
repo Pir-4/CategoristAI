@@ -89,6 +89,7 @@ class Transaction(BaseModel):
         String(20), default=TransactionStatus.PENDING
     )
     transaction_type: Mapped[TransactionType] = mapped_column(String(20))
+    raw_type: Mapped[str] = mapped_column(String(30))
     dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

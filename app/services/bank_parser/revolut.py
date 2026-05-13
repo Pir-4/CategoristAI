@@ -26,6 +26,7 @@ class RevolutParser(BankParserBase):
 
                 continue
 
+            raw_type = raw_transaction["Type"]
             account = self.get_account(accounts, description)
             transaction_type = self.get_transaction_type(
                 account, raw_transaction
@@ -52,6 +53,7 @@ class RevolutParser(BankParserBase):
                 merchant=merchant,
                 description=description,
                 transaction_type=transaction_type,
+                raw_type=raw_type,
                 account_id=account.id if account else None,
                 is_categorizable=is_categorizable,
             )
