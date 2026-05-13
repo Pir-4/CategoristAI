@@ -16,11 +16,16 @@ class RevolutParser(BankParserBase):
     ) -> list[Transaction]:
         result: list[Transaction] = []
         for raw_transaction in raw_transactions:
-            logger.debug(f"[Revolut] Raw transaction: {raw_transaction}")
+            description = raw_transaction["Description"]
             if raw_transaction["State"] != "COMPLETED":
+                logger.debug(
+                    "revolut.skip.state",
+                    description=description,
+                    state=raw_transaction["State"],
+                )
+
                 continue
 
-            description = raw_transaction["Description"]
             account = self.get_account(accounts, description)
             transaction_type = self.get_transaction_type(
                 account, raw_transaction
@@ -30,6 +35,13 @@ class RevolutParser(BankParserBase):
                 description
                 if transaction_type == TransactionType.EXPENSE
                 else None
+            )
+
+            logger.debug(
+                "revolut.classify",
+                description=description,
+                transaction_type=transaction_type,
+                account=account.name if account else None,
             )
 
             transaction = Transaction(

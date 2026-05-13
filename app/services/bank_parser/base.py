@@ -42,6 +42,7 @@ class BankParserBase(ABC):
         for account in sorted_accounts:
             if account.match_keyword.lower() in keyword.lower():
                 return account
+        logger.debug("parser.account.no_match", description=keyword)
         return None
 
     @abstractmethod
