@@ -7,20 +7,48 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core import BatchStatus, TransactionStatus
+from app.core import (
+    AccountType,
+    BatchStatus,
+    TransactionStatus,
+)
 
 from .base import BaseModel
+
+
+class Account(BaseModel):
+    __tablename__ = "accounts"
+    __table_args__ = (UniqueConstraint("user_id", "name"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(30))
+    account_type: Mapped[AccountType] = mapped_column(String(20))
+    match_keywords: Mapped[str] = mapped_column(Text)
+    initial_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    current_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    balance_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    is_balance_tracked: Mapped[bool] = mapped_column(default=True)
+    is_categorizable: Mapped[bool] = mapped_column(default=True)
+    is_active: Mapped[bool] = mapped_column(default=True)
 
 
 class Batch(BaseModel):
     __tablename__ = "batches"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
     upload_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
