@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
-from app.core import BatchStatus, ExpenseStatus
+from app.core import BatchStatus, TransactionStatus
 
 
 class CategoryBase(BaseModel):
@@ -55,7 +55,7 @@ class ExpenseRead(BaseModel):
     description: str
     merchant: str | None = None
     category: CategoryRead | None = None
-    status: ExpenseStatus
+    status: TransactionStatus
     created_at: datetime
 
     @field_serializer("amount")

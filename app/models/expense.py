@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core import BatchStatus, ExpenseStatus
+from app.core import BatchStatus, TransactionStatus
 
 from .base import BaseModel
 
@@ -56,8 +56,8 @@ class Expense(BaseModel):
     category_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("categories.id")
     )
-    status: Mapped[ExpenseStatus] = mapped_column(
-        String(20), default=ExpenseStatus.PENDING
+    status: Mapped[TransactionStatus] = mapped_column(
+        String(20), default=TransactionStatus.PENDING
     )
     dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(
