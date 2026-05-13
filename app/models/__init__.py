@@ -1,6 +1,13 @@
 from .base import BaseModel
 from .token import RefreshToken
-from .transaction import Batch, Category, Transaction
+from .transaction import (
+    Account,
+    AccountInterest,
+    BalanceSnapshot,
+    Batch,
+    Category,
+    Transaction,
+)
 from .user import User
 
 __all__ = [
@@ -10,4 +17,7 @@ __all__ = [
     "Batch",
     "Category",
     "Transaction",
+    "BalanceSnapshot",
+    "AccountInterest",
+    "Account",
 ]

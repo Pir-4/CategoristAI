@@ -95,3 +95,24 @@ class Transaction(BaseModel):
         DateTime(timezone=True), server_default=func.now()
     )
     is_categorizable: Mapped[bool] = mapped_column(default=True)
+
+
+class BalanceSnapshot(BaseModel):
+    __tablename__ = "balance_snapshots"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
+    batch_id: Mapped[UUID] = mapped_column(ForeignKey("batches.id"))
+    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AccountInterest(BaseModel):
+    __tablename__ = "account_interests"
+    __table_args__ = (UniqueConstraint("account_id", "year", "month"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
+    year: Mapped[int]
+    month: Mapped[int]
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
