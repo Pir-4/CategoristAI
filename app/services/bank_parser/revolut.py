@@ -1,14 +1,14 @@
 from datetime import datetime
 from decimal import Decimal
 
-from app.models import Expense
+from app.models import Transaction
 
 from .base import BankParserBase
 
 
 class RevolutParser(BankParserBase):
-    def parse(self, raw_transactions: list[dict]) -> list[Expense]:
-        result: list[Expense] = []
+    def parse(self, raw_transactions: list[dict]) -> list[Transaction]:
+        result: list[Transaction] = []
         for transaction in raw_transactions:
             if transaction["Type"] != "Card Payment":
                 continue
@@ -16,7 +16,7 @@ class RevolutParser(BankParserBase):
             if transaction["State"] != "COMPLETED":
                 continue
 
-            expense = Expense(
+            expense = Transaction(
                 date=datetime.strptime(
                     transaction["Completed Date"], "%Y-%m-%d %H:%M:%S"
                 ),

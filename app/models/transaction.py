@@ -17,6 +17,7 @@ from app.core import (
     AccountType,
     BatchStatus,
     TransactionStatus,
+    TransactionType,
 )
 
 from .base import BaseModel
@@ -72,11 +73,12 @@ class Category(BaseModel):
     is_active: Mapped[bool] = mapped_column(default=True)
 
 
-class Expense(BaseModel):
-    __tablename__ = "expenses"
+class Transaction(BaseModel):
+    __tablename__ = "transactions"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     batch_id: Mapped[UUID] = mapped_column(ForeignKey("batches.id"))
+    account_id: Mapped[UUID | None] = mapped_column(ForeignKey("accounts.id"))
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     description: Mapped[str] = mapped_column(String(50))
@@ -87,7 +89,9 @@ class Expense(BaseModel):
     status: Mapped[TransactionStatus] = mapped_column(
         String(20), default=TransactionStatus.PENDING
     )
+    transaction_type: Mapped[TransactionType] = mapped_column(String(20))
     dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    is_categorizable: Mapped[bool] = mapped_column(default=True)

@@ -4,7 +4,7 @@ from csv import DictReader
 
 from fastapi import UploadFile
 
-from app.models import Expense
+from app.models import Transaction
 from app.services.bank_parser import BankParser, Banks
 
 
@@ -19,7 +19,7 @@ async def parse_csv(file: UploadFile) -> list[dict]:
     return list(DictReader(io.StringIO(text)))
 
 
-async def parse_expenses(file: UploadFile, bank: Banks) -> list[Expense]:
+async def parse_expenses(file: UploadFile, bank: Banks) -> list[Transaction]:
     raw_transactions = await parse_csv(file)
     expenses = BankParser.get_parser(bank).parse(raw_transactions)
     for expense in expenses:

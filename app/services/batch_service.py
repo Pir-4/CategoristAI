@@ -3,13 +3,13 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Batch, Expense
+from app.models import Batch, Transaction
 
 logger = logging.getLogger(__name__)
 
 
 async def create_batch(
-    expenses: list[Expense],
+    expenses: list[Transaction],
     session: AsyncSession,
 ) -> Batch:
     logger.info("Create batch")
@@ -25,7 +25,7 @@ async def create_batch(
 
 
 async def create_expense(
-    expenses: list[Expense],
+    expenses: list[Transaction],
     batch: Batch,
     session: AsyncSession,
 ) -> int:
