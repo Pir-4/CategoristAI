@@ -3,6 +3,7 @@ from .token import RefreshToken
 from .transaction import (
     Account,
     AccountInterest,
+    AccountKeyword,
     BalanceSnapshot,
     Batch,
     Category,
@@ -20,4 +21,5 @@ __all__ = [
     "BalanceSnapshot",
     "AccountInterest",
     "Account",
+    "AccountKeyword",
 ]
