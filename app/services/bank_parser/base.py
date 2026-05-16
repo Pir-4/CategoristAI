@@ -37,12 +37,19 @@ class BankParserBase(ABC):
 
     @staticmethod
     def get_account(accounts: list[Account], keyword: str) -> Account | None:
-        sorted_accounts = sorted(
-            accounts, key=lambda a: len(a.match_keyword), reverse=True
+        all_keywords = [
+            (account, kw.keyword)
+            for account in accounts
+            for kw in account.keywords
+        ]
+        sorted_pairs = sorted(
+            all_keywords, key=lambda x: len(x[1]), reverse=True
         )
-        for account in sorted_accounts:
-            if account.match_keyword.lower() in keyword.lower():
+
+        for account, kw in sorted_pairs:
+            if kw.lower() in keyword.lower():
                 return account
+
         logger.debug("parser.account.no_match", description=keyword)
         return None
 
