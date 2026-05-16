@@ -19,7 +19,9 @@ async def parse_csv(file: UploadFile) -> list[dict]:
     return list(DictReader(io.StringIO(text)))
 
 
-async def parse_expenses(file: UploadFile, bank: Banks) -> list[Transaction]:
+async def parse_transactions(
+    file: UploadFile, bank: Banks
+) -> list[Transaction]:
     raw_transactions = await parse_csv(file)
     expenses = BankParser.get_parser(bank).parse(raw_transactions)
     for expense in expenses:
