@@ -10,7 +10,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core import (
     AccountType,
@@ -22,6 +22,15 @@ from app.core import (
 from .base import BaseModel
 
 
+class AccountKeyword(BaseModel):
+    __tablename__ = "account_keywords"
+    __table_args__ = (UniqueConstraint("account_id", "keyword"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
+    keyword: Mapped[str] = mapped_column(String(100))
+
+
 class Account(BaseModel):
     __tablename__ = "accounts"
     __table_args__ = (UniqueConstraint("user_id", "name"),)
@@ -30,7 +39,9 @@ class Account(BaseModel):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(30))
     account_type: Mapped[AccountType] = mapped_column(String(20))
-    match_keyword: Mapped[str] = mapped_column(String(100))
+    keywords: Mapped[list[AccountKeyword]] = relationship(
+        "AccountKeyword", lazy="selectin"
+    )
     initial_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     current_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime] = mapped_column(
