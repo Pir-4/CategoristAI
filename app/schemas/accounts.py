@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core import AccountType
 
@@ -31,13 +31,8 @@ class AccountResponse(BaseModel):
     id: UUID
     name: str
     account_type: AccountType
-    keywords: list[str]
+    keywords: list[KeywordResponse]
     initial_balance: Decimal
     current_balance: Decimal
     is_categorizable: bool
     is_active: bool
-
-    @field_validator("keywords", mode="before")
-    @classmethod
-    def extract_keywords(cls, v):
-        return [kw.keyword for kw in v]
