@@ -1,4 +1,5 @@
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Account, AccountKeyword, User
@@ -44,3 +45,14 @@ async def create_keywords(
     await session.commit()
     await session.refresh(new_keyword)
     return new_keyword
+
+
+async def get_account(
+    session: AsyncSession,
+    user: User,
+) -> list[Account]:
+    logger.info(f"Get account for user {user.id}")
+    result = await session.execute(
+        select(Account).where(Account.user_id == user.id)
+    )
+    return list(result.scalars().all())

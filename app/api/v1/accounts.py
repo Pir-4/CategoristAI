@@ -8,6 +8,9 @@ from app.schemas import AccountCreate, AccountResponse
 from app.services.account_service import (
     create_account as svc_create_account,
 )
+from app.services.account_service import (
+    get_account as svc_get_account,
+)
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -22,3 +25,12 @@ async def create_account(
         session=session, data=account, user=user
     )
     return AccountResponse.model_validate(new_account)
+
+
+@router.get("")
+async def get_account(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[AccountResponse]:
+    accounts = await svc_get_account(session=session, user=user)
+    return [AccountResponse.model_validate(a) for a in accounts]
