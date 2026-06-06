@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +49,17 @@ async def create_keywords(
     return new_keyword
 
 
+async def delete_keyword(session: AsyncSession, keyword_id: UUID):
+    logger.info(f"Delete keyword by id {keyword_id}")
+    result = await session.execute(
+        select(AccountKeyword).where(AccountKeyword.id == keyword_id)
+    )
+    kw = result.scalar_one_or_none()
+    if kw:
+        await session.delete(kw)
+        await session.commit()
+
+
 async def get_account(
     session: AsyncSession,
     user: User,
@@ -56,3 +69,17 @@ async def get_account(
         select(Account).where(Account.user_id == user.id)
     )
     return list(result.scalars().all())
+
+
+async def get_account_by_id(
+    session: AsyncSession,
+    user: User,
+    account_id: UUID,
+) -> Account | None:
+    logger.info(f"Get account by id {account_id} for user {user.id}")
+    result = await session.execute(
+        select(Account).where(
+            Account.user_id == user.id, Account.id == account_id
+        )
+    )
+    return result.scalar_one_or_none()
