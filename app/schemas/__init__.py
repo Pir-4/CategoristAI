@@ -1,4 +1,9 @@
-from app.schemas.accounts import AccountCreate, AccountResponse, KeywordCreate
+from app.schemas.accounts import (
+    AccountCreate,
+    AccountResponse,
+    KeywordCreate,
+    KeywordResponse,
+)
 from app.schemas.auth import LoginRequest, RefreshTokenRequest, TokenResponse
 from app.schemas.expense import (
     BatchRead,
@@ -24,4 +29,5 @@ __all__ = [
     "AccountCreate",
     "AccountResponse",
     "KeywordCreate",
+    "KeywordResponse",
 ]
