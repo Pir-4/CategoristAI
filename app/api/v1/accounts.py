@@ -7,8 +7,6 @@ from app.models import User
 from app.schemas import AccountCreate, AccountResponse
 from app.services.account_service import (
     create_account as svc_create_account,
-)
-from app.services.account_service import (
     get_account as svc_get_account,
 )
 
