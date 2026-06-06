@@ -10,6 +10,13 @@ class KeywordCreate(BaseModel):
     keyword: str = Field(min_length=5, max_length=100)
 
 
+class KeywordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    keyword: str
+
+
 class AccountCreate(BaseModel):
     name: str = Field(min_length=5, max_length=30, title="Account name")
     account_type: AccountType
