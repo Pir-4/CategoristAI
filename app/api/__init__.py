@@ -4,6 +4,7 @@ from .v1 import (
     user_accounts,
     upload_files_router,
     batches_router,
+    transactions_router,
 )
 
 v1_routers = [
@@ -12,6 +13,7 @@ v1_routers = [
     user_accounts,
     upload_files_router,
     batches_router,
+    transactions_router,
 ]
 
 __all__ = ["v1_routers"]
