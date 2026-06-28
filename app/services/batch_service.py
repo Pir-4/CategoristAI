@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +9,7 @@ from app.core import (
     TransactionStatus,
     TransactionType,
 )
-from app.models import Batch, Transaction
+from app.models import Batch, Transaction, User, Account
 
 logger = structlog.get_logger(__name__)
 
@@ -59,3 +60,31 @@ def identify_transaction_status(transaction: Transaction) -> TransactionStatus:
     ]:
         return TransactionStatus.REVIEWED
     return TransactionStatus.PENDING
+
+
+async def get_batches(
+    session: AsyncSession,
+    user: User,
+) -> list[Batch]:
+    logger.info(f"Get batches for user {user.id}")
+    result = await session.execute(
+        select(Batch)
+        .join(Account, Batch.account_id == Account.id)
+        .where(Account.user_id == user.id)
+    )
+    return list(result.scalars().all())
+
+
+async def get_batch_by_id(
+    batch_id: UUID,
+    session: AsyncSession,
+    user: User,
+) -> Batch | None:
+    logger.info(f"Get batch for user {user.id} by id {batch_id}")
+    result = await session.execute(
+        select(Batch)
+        .join(Account, Batch.account_id == Account.id)
+        .where(Account.user_id == user.id)
+        .where(Batch.id == batch_id)
+    )
+    return result.scalar_one_or_none()

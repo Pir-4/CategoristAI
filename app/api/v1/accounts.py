@@ -35,7 +35,7 @@ async def create_account(
 
 
 @router.get("")
-async def get_account(
+async def get_accounts(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[AccountResponse]:
