@@ -14,7 +14,7 @@ from app.schemas.expense import (
 )
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.schemas.upload import BatchResponse
-
+from app.schemas.transactions import TransactionResponse, TransactionUpdate
 
 __all__ = [
     "UserCreate",
@@ -33,4 +33,6 @@ __all__ = [
     "KeywordCreate",
     "KeywordResponse",
     "BatchResponse",
+    "TransactionResponse",
+    "TransactionUpdate",
 ]
