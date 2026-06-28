@@ -13,7 +13,7 @@ from app.schemas import (
 )
 from app.services.account_service import (
     create_account as svc_create_account,
-    get_account as svc_get_account,
+    get_accounts as svc_get_account,
     get_account_by_id,
     create_keywords as svc_create_keywords,
     delete_keyword as svc_delete_keyword,

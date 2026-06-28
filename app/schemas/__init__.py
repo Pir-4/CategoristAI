@@ -13,6 +13,8 @@ from app.schemas.expense import (
     ExpenseRead,
 )
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.upload import BatchResponse
+
 
 __all__ = [
     "UserCreate",
@@ -30,4 +32,5 @@ __all__ = [
     "AccountResponse",
     "KeywordCreate",
     "KeywordResponse",
+    "BatchResponse",
 ]

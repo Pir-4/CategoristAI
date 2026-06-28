@@ -60,7 +60,7 @@ async def delete_keyword(session: AsyncSession, keyword_id: UUID):
         await session.commit()
 
 
-async def get_account(
+async def get_accounts(
     session: AsyncSession,
     user: User,
 ) -> list[Account]:
