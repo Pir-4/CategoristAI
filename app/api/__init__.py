@@ -1,5 +1,17 @@
-from .v1 import auth_router, user_router, user_accounts, upload_files
+from .v1 import (
+    auth_router,
+    user_router,
+    user_accounts,
+    upload_files_router,
+    batches_router,
+)
 
-v1_routers = [user_router, auth_router, user_accounts, upload_files]
+v1_routers = [
+    user_router,
+    auth_router,
+    user_accounts,
+    upload_files_router,
+    batches_router,
+]
 
 __all__ = ["v1_routers"]
