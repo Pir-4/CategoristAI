@@ -2,11 +2,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.constants import (
-    AccountType,
-    BatchStatus,
     TransactionStatus,
     TransactionType,
     UserRole,
+    Institution,
 )
 from app.core.database import get_session
 from app.core.logging import setup_logging
@@ -31,8 +30,7 @@ __all__ = [
     "setup_logging",
     "AsyncSession",
     "UserRole",
-    "BatchStatus",
     "TransactionStatus",
-    "AccountType",
+    "Institution",
     "TransactionType",
 ]

@@ -11,15 +11,14 @@ class UserRole(StrEnum):
     USER = "user"
 
 
-class BatchStatus(StrEnum):
-    PROCESSING = "processing"
-    DONE = "done"
+class Institution(StrEnum):
+    REVOLUT = auto()
 
 
 class TransactionStatus(StrEnum):
-    PENDING = "pending"
-    CATEGORIZED = "categorized"
-    REVIEWED = "reviewed"
+    PENDING = auto()
+    CATEGORIZED = auto()
+    REVIEWED = auto()
 
 
 class TransactionType(StrEnum):
@@ -27,10 +26,3 @@ class TransactionType(StrEnum):
     INCOME = auto()
     INTERNAL_TRANSFER = auto()
     EXTERNAL_TRANSFER = auto()
-
-
-class AccountType(StrEnum):
-    SAVINGS = auto()
-    INVESTMENT = auto()
-    PERSONAL = auto()
-    JOINT = auto()
