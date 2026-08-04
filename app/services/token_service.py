@@ -1,12 +1,12 @@
-import logging
 from uuid import UUID
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import create_refresh_token, create_token_expires_at
 from app.models import RefreshToken
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def save_refresh_token(session: AsyncSession, user_id: UUID) -> str:

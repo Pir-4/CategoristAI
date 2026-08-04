@@ -1,28 +1,38 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+import sys
+
+import structlog
 
 from .config import settings
 from .constants import AppMode
 
-FORMAT = " [%(asctime)s] %(levelname)s %(name)s: %(message)s"
 
+def setup_logging() -> None:
+    is_prod = settings.project.app_mode == AppMode.PROD
+    log_level = logging.INFO if is_prod else logging.DEBUG
 
-def setup_logging():
-    formatter = logging.Formatter(FORMAT)
-    logger = logging.getLogger()
-    handler = logging.StreamHandler()
-    logger.setLevel(logging.DEBUG)
-    if settings.project.app_mode == AppMode.PROD:
-        Path(settings.project.log_file).parent.mkdir(
-            parents=True, exist_ok=True
-        )
-        handler = RotatingFileHandler(
-            filename=settings.project.log_file,
-            maxBytes=settings.project.log_max_bytes,
-            backupCount=settings.project.log_backup_count,
-        )
-        logger.setLevel(logging.INFO)
+    shared_processors = [
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+    ]
 
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    renderer = (
+        structlog.processors.JSONRenderer()
+        if is_prod
+        else structlog.dev.ConsoleRenderer()
+    )
+
+    structlog.configure(
+        processors=shared_processors + [renderer],
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+    )
+
+    # stdlib logging для FastAPI, SQLAlchemy etc
+    logging.basicConfig(
+        level=log_level,
+        stream=sys.stdout,
+        format="%(levelname)s %(name)s: %(message)s",
+    )

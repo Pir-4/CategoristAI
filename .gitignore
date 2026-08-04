@@ -216,3 +216,9 @@ __marimo__/
 .streamlit/secrets.toml
 
 logs/
+
+#test
+tests/test_data/private/
+
+# Local notes (not for commit)
+.notes/
