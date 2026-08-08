@@ -13,7 +13,6 @@ from app.core import (
 class TransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    batch_id: UUID
     account_id: UUID
     date: datetime
     amount: Decimal
@@ -22,7 +21,6 @@ class TransactionResponse(BaseModel):
     category_id: UUID | None
     status: TransactionStatus
     transaction_type: TransactionType
-    is_categorizable: bool
     created_at: datetime
 
 

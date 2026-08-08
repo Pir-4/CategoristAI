@@ -55,18 +55,3 @@ async def update_transaction(
     await session.commit()
     await session.refresh(transaction)
     return transaction
-
-
-async def get_transaction_by_batch_id(
-    batch_id: UUID,
-    session: AsyncSession,
-    user: User,
-) -> list[Transaction]:
-    logger.info(f"Get transaction for user {user.id} by batch id {batch_id}")
-    result = await session.execute(
-        select(Transaction)
-        .join(Account, Transaction.account_id == Account.id)
-        .where(Account.user_id == user.id)
-        .where(Transaction.batch_id == batch_id)
-    )
-    return list(result.scalars().all())

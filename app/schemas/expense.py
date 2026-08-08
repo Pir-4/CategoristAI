@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
-from app.core import BatchStatus, TransactionStatus
+from app.core import TransactionStatus
 
 
 class CategoryBase(BaseModel):
@@ -34,15 +34,6 @@ class CategoryRead(CategoryBase):
     user_id: UUID = Field(title="User ID", description="UUID v4")
     is_active: bool
     created_at: datetime
-
-
-class BatchRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID = Field(title="Batch ID", description="UUID v4")
-    upload_at: datetime
-    total_count: int
-    status: BatchStatus
 
 
 class ExpenseRead(BaseModel):
