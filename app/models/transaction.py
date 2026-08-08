@@ -28,6 +28,7 @@ class Account(BaseModel):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(30))
+    institution_acc_name: Mapped[str] = mapped_column(String(100))
     institution: Mapped[Institution] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -53,19 +54,23 @@ class Transaction(BaseModel):
     __tablename__ = "transactions"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+
     account_id: Mapped[UUID | None] = mapped_column(ForeignKey("accounts.id"))
+    dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
+
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     description: Mapped[str] = mapped_column(String(50))
+    transaction_type: Mapped[TransactionType] = mapped_column(String(20))
+
     category_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("categories.id")
     )
     status: Mapped[TransactionStatus] = mapped_column(
         String(20), default=TransactionStatus.PENDING
     )
-    transaction_type: Mapped[TransactionType] = mapped_column(String(20))
-    dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
