@@ -25,13 +25,12 @@ async def parse_csv(file: UploadFile) -> list[dict]:
 
 
 async def parse_transactions(
-    file: UploadFile, account: Account, accounts: list[Account]
-) -> list[Transaction]:
+    file: UploadFile, current_account: Account, accounts: list[Account]
+) -> tuple[list[Transaction], list[dict]]:
     raw_transactions = await parse_csv(file)
-    transactions = get_parser(account.institution, accounts).parse(
-        raw_transactions
-    )
+    parser = get_parser(current_account.institution, accounts)
+    transactions = parser.parse(raw_transactions)
     for tr in transactions:
-        tr.account_id = account.id
+        tr.account_id = current_account.id
         tr.dedup_hash = build_dedup_hash(transaction=tr)
-    return transactions
+    return transactions, parser.errors
