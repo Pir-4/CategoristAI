@@ -35,6 +35,9 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
     def map_to_transaction(self, tr: RevolutRow) -> Transaction:
         transaction_type = self.get_transaction_type(tr)
         description = self.edit_description(transaction_type, tr.description)
+        if tr.state != "COMPLETED":
+            raise ValueError("Unexpected status")
+
         return Transaction(
             start_date=tr.start_date,
             completed_date=tr.completed_date,

@@ -11,11 +11,22 @@ T = TypeVar("T")
 
 
 class InstitutionParserBase(ABC, Generic[T]):
+    errors: list[dict]
+    transactions: list[Transaction]
+
     def __init__(self, accounts: list[Account]):
         self.accounts = accounts
+        self.transactions = []
+        self.errors = []
 
     def parse(self, raw_transactions: list[dict]) -> list[Transaction]:
-        return [self.parse_row(tr) for tr in raw_transactions]
+        for tr in raw_transactions:
+            try:
+                self.transactions.append(self.parse_row(tr))
+            except Exception as ex:
+                self.errors.append({"error": ex, "row": tr})
+
+        return self.transactions
 
     @abstractmethod
     def parse_row(self, row: dict) -> Transaction: ...
