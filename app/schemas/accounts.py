@@ -27,3 +27,10 @@ class AccountResponse(BaseModel):
     initial_balance: Decimal
     current_balance: Decimal
     is_active: bool
+
+
+class AccountUpdate(BaseModel):
+    name: str | None = None
+    institution: Institution | None = None
+    institution_acc_name: str | None = None
+    is_active: bool | None = None

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Account, User
-from app.schemas import AccountCreate
+from app.schemas import AccountCreate, AccountUpdate
 
 logger = structlog.get_logger(__name__)
 
@@ -51,3 +51,22 @@ async def get_account_by_id(
         )
     )
     return result.scalar_one_or_none()
+
+
+async def update_account(
+    account_id: UUID,
+    data: AccountUpdate,
+    session: AsyncSession,
+    user: User,
+) -> Account | None:
+    logger.info(f"Update account for user {user.id} by id {account_id}")
+    account = await get_account_by_id(session, user, account_id)
+    if not account:
+        return None
+
+    for key, value in data.model_dump(exclude_none=True).items():
+        setattr(account, key, value)
+
+    await session.commit()
+    await session.refresh(account)
+    return account

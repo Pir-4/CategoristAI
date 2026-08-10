@@ -1,6 +1,7 @@
 from app.schemas.accounts import (
     AccountCreate,
     AccountResponse,
+    AccountUpdate,
 )
 from app.schemas.auth import LoginRequest, RefreshTokenRequest, TokenResponse
 from app.schemas.expense import (
@@ -26,6 +27,7 @@ __all__ = [
     "ExpenseRead",
     "AccountCreate",
     "AccountResponse",
+    "AccountUpdate",
     "UploadResult",
     "TransactionResponse",
     "TransactionUpdate",
