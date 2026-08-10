@@ -14,9 +14,9 @@ class TransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     account_id: UUID
-    date: datetime
+    start_date: datetime
+    completed_date: datetime
     amount: Decimal
-    description: str
     merchant: str | None
     category_id: UUID | None
     status: TransactionStatus
