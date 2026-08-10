@@ -20,11 +20,9 @@ async def create_account(
         user_id=user.id,
         name=data.name,
         institution=data.institution,
-        initial_balance=data.initial_balance,
+        institution_acc_name=data.institution_acc_name,
     )
     session.add(new_account)
-    await session.flush()
-    await session.refresh(new_account)
     await session.commit()
     await session.refresh(new_account)
     return new_account

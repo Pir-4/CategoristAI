@@ -1,8 +1,6 @@
 from app.schemas.accounts import (
     AccountCreate,
     AccountResponse,
-    KeywordCreate,
-    KeywordResponse,
 )
 from app.schemas.auth import LoginRequest, RefreshTokenRequest, TokenResponse
 from app.schemas.expense import (
@@ -28,8 +26,6 @@ __all__ = [
     "ExpenseRead",
     "AccountCreate",
     "AccountResponse",
-    "KeywordCreate",
-    "KeywordResponse",
     "UploadResult",
     "TransactionResponse",
     "TransactionUpdate",
