@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.schemas import TransactionResponse
+from .transactions import TransactionResponse
 
 
 class UploadResult(BaseModel):
