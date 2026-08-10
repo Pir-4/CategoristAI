@@ -1,4 +1,3 @@
-from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,8 +23,7 @@ class AccountResponse(BaseModel):
     id: UUID
     name: str
     institution: Institution
-    initial_balance: Decimal
-    current_balance: Decimal
+    institution_acc_name: str
     is_active: bool
 
 
