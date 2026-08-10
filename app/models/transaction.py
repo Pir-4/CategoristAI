@@ -55,7 +55,7 @@ class Transaction(BaseModel):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
-    account_id: Mapped[UUID | None] = mapped_column(ForeignKey("accounts.id"))
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
     dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
 
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
