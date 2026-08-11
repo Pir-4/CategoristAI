@@ -24,7 +24,7 @@ class InstitutionParserBase(ABC, Generic[T]):
             try:
                 self.transactions.append(self.parse_row(tr))
             except Exception as ex:
-                self.errors.append({"error": ex, "row": tr})
+                self.errors.append({"error": str(ex), "row": tr})
 
         return self.transactions
 

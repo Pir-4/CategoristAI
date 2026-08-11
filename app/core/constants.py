@@ -24,5 +24,6 @@ class TransactionStatus(StrEnum):
 class TransactionType(StrEnum):
     EXPENSE = auto()
     INCOME = auto()
+    INTEREST = auto()
     INTERNAL_TRANSFER = auto()
     EXTERNAL_TRANSFER = auto()

@@ -1,7 +1,7 @@
 import structlog
 import re
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from decimal import Decimal
 from app.core import (
@@ -14,6 +14,13 @@ logger = structlog.get_logger(__name__)
 
 
 class RevolutRow(BaseModel):
+    @classmethod
+    def matches(cls, row: dict) -> bool:
+        aliases = {f.alias for f in cls.model_fields.values() if f.alias}
+        return aliases.issubset(row.keys())
+
+
+class RevolutAccountRow(RevolutRow):
     model_config = ConfigDict(populate_by_name=True)
 
     transaction_type: str = Field(alias="Type")
@@ -28,11 +35,50 @@ class RevolutRow(BaseModel):
     product: str = Field(alias="Product")
 
 
-class RevolutParser(InstitutionParserBase[RevolutRow]):
+class RevolutSavingRow(RevolutRow):
+    model_config = ConfigDict(populate_by_name=True)
+
+    date: datetime = Field(alias="Date")
+    description: str = Field(alias="Description")
+    money_out: Decimal | None = Field(alias="Money out")
+    money_in: Decimal | None = Field(alias="Money in")
+    balance: Decimal = Field(alias="Balance")
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def parse_date(cls, v):
+        return datetime.strptime(v, "%d %b %Y")
+
+    @field_validator("money_in", "money_out", mode="before")
+    @classmethod
+    def clean_amount(cls, v):
+        if not v:
+            return None
+        cleaned = re.sub(r"[^\d.]", "", v)  # оставляем только цифры и точку
+        return Decimal(cleaned) if cleaned else None
+
+    @field_validator("balance", mode="before")
+    @classmethod
+    def clean_balance(cls, v):
+        return re.sub(r"[^\d.]", "", v)
+
+
+class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
     def parse_row(self, row: dict) -> Transaction:
-        return self.map_to_transaction(RevolutRow(**row))
+        for model in [RevolutAccountRow, RevolutSavingRow]:
+            if model.matches(row):
+                return self.map_to_transaction(model(**row))
+        raise ValueError(f"Unknown CSV format, headers: {list(row.keys())}")
 
     def map_to_transaction(self, tr: RevolutRow) -> Transaction:
+        if isinstance(tr, RevolutAccountRow):
+            return self.map_account_to_transaction(tr)
+        if isinstance(tr, RevolutSavingRow):
+            return self.map_saving_acc_to_transaction(tr)
+
+        raise ValueError(f"Unexpected transaction type {tr}")
+
+    def map_account_to_transaction(self, tr: RevolutAccountRow) -> Transaction:
         if tr.state != "COMPLETED":
             raise ValueError("Unexpected status")
 
@@ -41,12 +87,25 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
         return Transaction(
             start_date=tr.start_date,
             completed_date=tr.completed_date,
-            amount=abs(tr.amount),
+            amount=tr.amount,
             transaction_type=transaction_type,
             merchant=description,
         )
 
-    def get_transaction_type(self, in_tr: RevolutRow) -> TransactionType:
+    def map_saving_acc_to_transaction(
+        self, tr: RevolutSavingRow
+    ) -> Transaction:
+        transaction_type = self.get_saving_transaction_type(tr)
+        amount = self.get_amount_saving_transaction(tr)
+        return Transaction(
+            start_date=tr.date,
+            completed_date=tr.date,
+            amount=amount,
+            transaction_type=transaction_type,
+            merchant=tr.description,
+        )
+
+    def get_transaction_type(self, in_tr: RevolutAccountRow) -> TransactionType:
         if in_tr.transaction_type == "Card Payment":
             return TransactionType.EXPENSE
         if in_tr.transaction_type == "Exchange":
@@ -59,6 +118,22 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
                 return TransactionType.INTERNAL_TRANSFER
             return TransactionType.EXTERNAL_TRANSFER
 
+        raise ValueError(f"Unknown type {in_tr}")
+
+    @staticmethod
+    def get_saving_transaction_type(in_tr: RevolutSavingRow) -> TransactionType:
+        if in_tr.description == "Gross Interest":
+            return TransactionType.INTEREST
+        if in_tr.description in ("Withdrawal", "Deposit"):
+            return TransactionType.INTERNAL_TRANSFER
+        raise ValueError(f"Unknown type {in_tr}")
+
+    @staticmethod
+    def get_amount_saving_transaction(in_tr: RevolutSavingRow) -> Decimal:
+        if in_tr.description in ("Gross Interest", "Deposit"):
+            return in_tr.money_in
+        if in_tr.description == "Withdrawal":
+            return -1 * in_tr.money_out
         raise ValueError(f"Unknown type {in_tr}")
 
     @staticmethod
