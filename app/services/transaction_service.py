@@ -3,7 +3,6 @@ from uuid import UUID
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 
 from app.models import Account, Transaction, User
 from app.schemas import TransactionUpdate
@@ -62,14 +61,36 @@ async def save_transactions(
     session: AsyncSession, user: User, transactions: list[Transaction]
 ) -> list[Transaction]:
     logger.info(f"Save transactions for user {user.id}")
-    for tr in transactions:
-        try:
-            session.add(tr)
-            await session.flush()  # проставит id и defaults
-        except IntegrityError:
-            # dedup_hash дубль — пропускаем
-            pass
-            # await session.rollback()  # или begin_nested
 
+    # keep first occurrence if the incoming batch itself has duplicate hashes
+    unique_by_hash: dict[str, Transaction] = {}
+    for tr in transactions:
+        if tr.dedup_hash in unique_by_hash:
+            raise ValueError(
+                f"Hash duplication in transaction list: "
+                f"tr1 {unique_by_hash[tr.dedup_hash]}, tr2: {tr}"
+            )
+        unique_by_hash[tr.dedup_hash] = tr
+
+    result = await session.execute(
+        select(Transaction.dedup_hash).where(
+            Transaction.dedup_hash.in_(unique_by_hash.keys())
+        )
+    )
+    existing_hashes = set(result.scalars().all())
+
+    new_transactions = [
+        tr
+        for dedup_hash, tr in unique_by_hash.items()
+        if dedup_hash not in existing_hashes
+    ]
+
+    session.add_all(new_transactions)
     await session.commit()
-    return transactions
+
+    skipped = len(transactions) - len(new_transactions)
+    logger.info(
+        f"Saved {len(new_transactions)} transactions, "
+        f"skipped {skipped} duplicates for user {user.id}"
+    )
+    return new_transactions
