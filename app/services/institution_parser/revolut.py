@@ -31,7 +31,7 @@ class RevolutAccountRow(RevolutRow):
     fee: Decimal = Field(alias="Fee")
     currency: str = Field(alias="Currency")
     state: str = Field(alias="State")
-    balance: Decimal = Field(alias="Balance")
+    balance: Decimal | None = Field(alias="Balance")
     product: str = Field(alias="Product")
 
     @field_validator("start_date", "completed_date", mode="before")
@@ -44,6 +44,12 @@ class RevolutAccountRow(RevolutRow):
         # e.g. "2026-04-28 7:48:25" instead of "2026-04-28 07:48:25"
         pattern = r"^(\d{4}-\d{2}-\d{2}) (\d):(\d{2}:\d{2})$"
         return re.sub(pattern, r"\1 0\2:\3", v)
+
+    @field_validator("balance", mode="before")
+    @classmethod
+    def empty_balance_to_none(cls, v):
+        # Balance is blank for rows that never completed (e.g. REVERTED)
+        return v or None
 
 
 class RevolutSavingRow(RevolutRow):
