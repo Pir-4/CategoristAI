@@ -15,6 +15,7 @@ def get_tr_hash_data(transaction: Transaction) -> str:
         + str(transaction.start_date.isoformat())
         + str(transaction.merchant)
         + str(transaction.amount)
+        + str(transaction.fee)
     )
 
 

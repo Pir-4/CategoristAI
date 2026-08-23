@@ -61,6 +61,7 @@ class Transaction(BaseModel):
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     merchant: Mapped[str] = mapped_column(String(150))
     transaction_type: Mapped[TransactionType] = mapped_column(String(20))
 

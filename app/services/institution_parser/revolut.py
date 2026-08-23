@@ -103,6 +103,7 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
             start_date=tr.start_date,
             completed_date=tr.completed_date or tr.start_date,
             amount=tr.amount,
+            fee=tr.fee,
             transaction_type=transaction_type,
             merchant=description,
         )
@@ -128,6 +129,8 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
             ):
                 return TransactionType.INTERNAL_TRANSFER
             return TransactionType.EXTERNAL_TRANSFER
+        elif in_tr.transaction_type in "Charge":
+            return TransactionType.EXPENSE
         elif in_tr.amount > 0:
             return TransactionType.INCOME
         elif in_tr.amount < 0:
