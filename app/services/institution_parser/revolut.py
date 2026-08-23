@@ -47,6 +47,8 @@ class RevolutSavingRow(RevolutRow):
     @field_validator("date", mode="before")
     @classmethod
     def parse_date(cls, v):
+        # Revolut export sometimes spells September as "Sept" instead of "Sep"
+        v = re.sub(r"\bSept\b", "Sep", v)
         return datetime.strptime(v, "%d %b %Y")
 
     @field_validator("money_in", "money_out", mode="before")
