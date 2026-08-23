@@ -76,7 +76,7 @@ class RevolutSavingRow(RevolutRow):
 class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
     def parse_row(self, row: dict) -> Transaction:
         state = row.get("State")
-        if state is not None and state != "COMPLETED":
+        if state is not None and state not in ("COMPLETED", "REVERTED"):
             logger.info(f"Skipping non-completed transaction: {row}")
             raise ValueError(f"Transaction not completed yet (state={state!r})")
 
