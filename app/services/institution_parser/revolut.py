@@ -147,6 +147,11 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
             TransactionType.INTERNAL_TRANSFER,
             TransactionType.EXTERNAL_TRANSFER,
         ]:
-            return re.sub(r"^(Transfer\s+)?(To|From)\s+", "", description)
+            return re.sub(
+                r"^(Transfer\s+)?(To|From)\s+",
+                "",
+                description,
+                flags=re.IGNORECASE,
+            )
 
         raise ValueError(f"Unknown type {tr_type} for descriptor {description}")
