@@ -25,7 +25,7 @@ class RevolutAccountRow(RevolutRow):
 
     transaction_type: str = Field(alias="Type")
     start_date: datetime = Field(alias="Started Date")
-    completed_date: datetime = Field(alias="Completed Date")
+    completed_date: datetime | None = Field(alias="Completed Date")
     description: str = Field(alias="Description")
     amount: Decimal = Field(alias="Amount")
     fee: Decimal = Field(alias="Fee")
@@ -37,6 +37,9 @@ class RevolutAccountRow(RevolutRow):
     @field_validator("start_date", "completed_date", mode="before")
     @classmethod
     def pad_single_digit_hour(cls, v):
+        # Completed Date is blank for rows that never completed (e.g. REVERTED)
+        if not v:
+            return None
         # Revolut export sometimes omits the leading zero on the hour,
         # e.g. "2026-04-28 7:48:25" instead of "2026-04-28 07:48:25"
         pattern = r"^(\d{4}-\d{2}-\d{2}) (\d):(\d{2}:\d{2})$"
@@ -98,7 +101,7 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
         description = self.edit_description(transaction_type, tr.description)
         return Transaction(
             start_date=tr.start_date,
-            completed_date=tr.completed_date,
+            completed_date=tr.completed_date or tr.start_date,
             amount=tr.amount,
             transaction_type=transaction_type,
             merchant=description,
@@ -125,9 +128,9 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
             ):
                 return TransactionType.INTERNAL_TRANSFER
             return TransactionType.EXTERNAL_TRANSFER
-        elif in_tr.balance > 0:
+        elif in_tr.amount > 0:
             return TransactionType.INCOME
-        elif in_tr.balance < 0:
+        elif in_tr.amount < 0:
             return TransactionType.EXPENSE
 
         raise ValueError(f"Unknown type {in_tr}")
