@@ -116,9 +116,9 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
         )
 
     def get_transaction_type(self, in_tr: RevolutAccountRow) -> TransactionType:
-        if in_tr.transaction_type == "Card Payment":
+        if in_tr.transaction_type in ("Card Payment", "Charge"):
             return TransactionType.EXPENSE
-        if in_tr.transaction_type == "Exchange":
+        if in_tr.transaction_type in ("Exchange", "Topup"):
             return TransactionType.INCOME
         if in_tr.transaction_type == "Transfer":
             if any(
