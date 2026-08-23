@@ -62,14 +62,15 @@ async def save_transactions(
 ) -> list[Transaction]:
     logger.info(f"Save transactions for user {user.id}")
 
-    # keep first occurrence if the incoming batch itself has duplicate hashes
     unique_by_hash: dict[str, Transaction] = {}
     for tr in transactions:
         if tr.dedup_hash in unique_by_hash:
-            raise ValueError(
+            message = (
                 f"Hash duplication in transaction list: "
                 f"tr1 {unique_by_hash[tr.dedup_hash]}, tr2: {tr}"
             )
+            logger.warn(message)
+            raise ValueError(message)
         unique_by_hash[tr.dedup_hash] = tr
 
     result = await session.execute(

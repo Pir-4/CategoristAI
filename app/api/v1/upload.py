@@ -10,6 +10,9 @@ from app.services.account_service import (
     get_account_by_id,
     get_accounts,
 )
+from app.services.transaction_service import (
+    save_transactions,
+)
 from app.services.csv_service import parse_transactions
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -33,9 +36,10 @@ async def upload_batch(
     transactions, errors = await parse_transactions(
         upload_file, current_account=current_account, accounts=user_accounts
     )
+    saved_transactions = await save_transactions(session, user, transactions)
     return UploadResult(
         transactions=[
-            TransactionResponse.model_validate(a) for a in transactions
+            TransactionResponse.model_validate(a) for a in saved_transactions
         ],
         errors=errors,
     )
