@@ -148,6 +148,9 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
 
     @staticmethod
     def edit_description(tr_type: TransactionType, description: str):
+        if tr_type == TransactionType.EXPENSE:
+            return description
+
         if tr_type in [TransactionType.INCOME]:
             return re.sub(
                 r"^Payment\s+(From)\s+",
