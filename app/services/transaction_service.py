@@ -3,6 +3,7 @@ from uuid import UUID
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.models import Account, Transaction, User
 from app.schemas import TransactionUpdate
@@ -55,3 +56,20 @@ async def update_transaction(
     await session.commit()
     await session.refresh(transaction)
     return transaction
+
+
+async def save_transactions(
+    session: AsyncSession, user: User, transactions: list[Transaction]
+) -> list[Transaction]:
+    logger.info(f"Save transactions for user {user.id}")
+    for tr in transactions:
+        try:
+            session.add(tr)
+            await session.flush()  # проставит id и defaults
+        except IntegrityError:
+            # dedup_hash дубль — пропускаем
+            pass
+            # await session.rollback()  # или begin_nested
+
+    await session.commit()
+    return transactions
