@@ -75,6 +75,11 @@ class RevolutSavingRow(RevolutRow):
 
 class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
     def parse_row(self, row: dict) -> Transaction:
+        state = row.get("State")
+        if state is not None and state != "COMPLETED":
+            logger.info(f"Skipping non-completed transaction: {row}")
+            raise ValueError(f"Transaction not completed yet (state={state!r})")
+
         for model in [RevolutAccountRow, RevolutSavingRow]:
             if model.matches(row):
                 return self.map_to_transaction(model(**row))
@@ -89,9 +94,6 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
         raise ValueError(f"Unexpected transaction type {tr}")
 
     def map_account_to_transaction(self, tr: RevolutAccountRow) -> Transaction:
-        if tr.state != "COMPLETED":
-            raise ValueError("Unexpected status")
-
         transaction_type = self.get_transaction_type(tr)
         description = self.edit_description(transaction_type, tr.description)
         return Transaction(
@@ -116,10 +118,6 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
         )
 
     def get_transaction_type(self, in_tr: RevolutAccountRow) -> TransactionType:
-        if in_tr.transaction_type in ("Card Payment", "Charge"):
-            return TransactionType.EXPENSE
-        if in_tr.transaction_type in ("Exchange", "Topup"):
-            return TransactionType.INCOME
         if in_tr.transaction_type == "Transfer":
             if any(
                 account.institution_acc_name in in_tr.description
@@ -127,6 +125,10 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
             ):
                 return TransactionType.INTERNAL_TRANSFER
             return TransactionType.EXTERNAL_TRANSFER
+        elif in_tr.balance > 0:
+            return TransactionType.INCOME
+        elif in_tr.balance < 0:
+            return TransactionType.EXPENSE
 
         raise ValueError(f"Unknown type {in_tr}")
 
