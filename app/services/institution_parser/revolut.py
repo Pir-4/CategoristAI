@@ -34,6 +34,14 @@ class RevolutAccountRow(RevolutRow):
     balance: Decimal = Field(alias="Balance")
     product: str = Field(alias="Product")
 
+    @field_validator("start_date", "completed_date", mode="before")
+    @classmethod
+    def pad_single_digit_hour(cls, v):
+        # Revolut export sometimes omits the leading zero on the hour,
+        # e.g. "2026-04-28 7:48:25" instead of "2026-04-28 07:48:25"
+        pattern = r"^(\d{4}-\d{2}-\d{2}) (\d):(\d{2}:\d{2})$"
+        return re.sub(pattern, r"\1 0\2:\3", v)
+
 
 class RevolutSavingRow(RevolutRow):
     model_config = ConfigDict(populate_by_name=True)
