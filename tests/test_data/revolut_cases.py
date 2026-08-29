@@ -428,6 +428,16 @@ def counts(cases: list[RevolutCase]) -> dict[str, int]:
     return result
 
 
+# Three byte-identical rows. Savings statements carry no time of day, so a
+# genuine export really can repeat the same date/description/amount — real data
+# has 52 such groups, up to three deep. Only `occurrence` keeps them apart.
+REPEATED_SAVING_ROWS: list[dict[str, str]] = [
+    _saving_row("10 Apr 2026", "Withdrawal", "£50.00", "", "£2,050.20"),
+    _saving_row("10 Apr 2026", "Withdrawal", "£50.00", "", "£2,000.20"),
+    _saving_row("10 Apr 2026", "Withdrawal", "£50.00", "", "£1,950.20"),
+]
+
+
 UNKNOWN_HEADER = ["Foo", "Bar"]
 UNKNOWN_ROWS: list[dict[str, str]] = [
     {"Foo": "1", "Bar": "2"},

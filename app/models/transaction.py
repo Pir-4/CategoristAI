@@ -52,15 +52,47 @@ class Category(BaseModel):
 
 
 class Transaction(BaseModel):
+    """A single imported transaction.
+
+    Identity — what counts as "the same transaction" — is expressed by the
+    unique constraint below rather than by a hash computed in Python. Two rows
+    clash only when every one of those columns is literally equal, so there is
+    no digest to keep in sync and no chance of a collision silently dropping a
+    real transaction. Changing the rule means changing the constraint, which
+    Alembic detects and turns into a migration.
+    """
+
     __tablename__ = "transactions"
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id",
+            "start_date",
+            "merchant",
+            "amount",
+            "fee",
+            "occurrence",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
     account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
-    dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
 
-    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    completed_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    occurrence: Mapped[int] = mapped_column(default=0)
+    """How many identical-looking rows preceded this one in the same file.
+
+    Bank exports carry no time of day for some products, so a statement can
+    legitimately contain the same date/merchant/amount twice. This counter is
+    what keeps those two rows distinct while staying stable on re-upload,
+    because file order is stable.
+    """
+
+    # Naive on purpose: a bank statement carries wall-clock local time with no
+    # zone. Storing it in a tz-aware column would make Postgres attach the
+    # session timezone on write and hand back a different value on read, which
+    # breaks equality against the value the parser produced.
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=False))
+    completed_date: Mapped[datetime] = mapped_column(DateTime(timezone=False))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     merchant: Mapped[str] = mapped_column(String(150))

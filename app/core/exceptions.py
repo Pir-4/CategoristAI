@@ -153,9 +153,9 @@ class TransactionPersistError(AppError):
     message = "Failed to save transactions"
 
 
-class DedupHashCollisionError(InvariantError):
-    code = ErrorCode.DEDUP_HASH_COLLISION
-    message = "Two transactions in one batch share a dedup hash"
+class DuplicateIdentityInBatchError(InvariantError):
+    code = ErrorCode.DUPLICATE_IDENTITY_IN_BATCH
+    message = "Two rows in one batch resolve to the same transaction identity"
 
 
 class UnexpectedRowModelError(InvariantError):

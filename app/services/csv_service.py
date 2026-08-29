@@ -1,4 +1,3 @@
-import hashlib
 import io
 import time
 from collections import defaultdict
@@ -25,19 +24,19 @@ from app.services.institution_parser import (
 logger = structlog.get_logger(__name__)
 
 
-def get_tr_hash_data(transaction: Transaction) -> str:
+def identity_key(transaction: Transaction) -> tuple:
+    """The columns that decide whether two rows are the same transaction.
+
+    Mirrors the unique constraint on Transaction; `occurrence` is appended by
+    the caller once it knows how many identical rows came before.
+    """
     return (
-        str(transaction.account_id)
-        + str(transaction.start_date.isoformat())
-        + str(transaction.merchant)
-        + str(transaction.amount)
-        + str(transaction.fee)
+        transaction.account_id,
+        transaction.start_date,
+        transaction.merchant,
+        transaction.amount,
+        transaction.fee,
     )
-
-
-def build_dedup_hash(transaction: Transaction, occurrence: int) -> str:
-    data = get_tr_hash_data(transaction) + str(occurrence)
-    return hashlib.sha256(data.encode()).hexdigest()
 
 
 async def read_csv(file: UploadFile) -> ParsedCsv:
@@ -89,7 +88,7 @@ async def read_csv(file: UploadFile) -> ParsedCsv:
 async def parse_transactions(
     file: UploadFile, current_account: Account, accounts: list[Account]
 ) -> tuple[ParseOutcome, int]:
-    """Parse the upload and assign a dedup hash to every parsed transaction.
+    """Parse the upload and number identical-looking rows within the file.
 
     Returns the outcome and the total number of data rows in the file.
     """
@@ -101,21 +100,21 @@ async def parse_transactions(
 
     outcome = parser.parse(parsed_csv.rows)
 
-    occurrence_counts: dict[str, int] = defaultdict(int)
+    # File order is stable, so the same file always produces the same
+    # occurrence numbers — which is what keeps re-upload idempotent.
+    seen: dict[tuple, int] = defaultdict(int)
     for item in outcome.parsed:
         transaction = item.transaction
         transaction.account_id = current_account.id
-        key = get_tr_hash_data(transaction)
-        occurrence = occurrence_counts[key]
-        occurrence_counts[key] += 1
-        transaction.dedup_hash = build_dedup_hash(
-            transaction=transaction, occurrence=occurrence
-        )
-        logger.debug(
-            "csv.row.hashed",
-            row_number=item.row.number,
-            dedup_hash=transaction.dedup_hash,
-        )
+        key = identity_key(transaction)
+        transaction.occurrence = seen[key]
+        seen[key] += 1
+        if transaction.occurrence:
+            logger.debug(
+                "csv.row.repeated",
+                row_number=item.row.number,
+                occurrence=transaction.occurrence,
+            )
 
     total_rows = len(parsed_csv.rows)
     log_event = logger.warning if outcome.failed else logger.info

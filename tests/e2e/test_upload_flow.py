@@ -9,6 +9,8 @@ from httpx import AsyncClient
 from tests.test_data.revolut_cases import (
     ACCOUNT_CASES,
     ACCOUNT_HEADER,
+    REPEATED_SAVING_ROWS,
+    SAVING_HEADER,
     UNKNOWN_HEADER,
     UNKNOWN_ROWS,
     cases_to_csv,
@@ -65,6 +67,31 @@ async def test_upload_reports_saved_skipped_and_duplicates(
     repeat = again.json()["counters"]
     assert repeat["saved"] == 0
     assert repeat["duplicates"] == expected["parsed"]
+
+
+async def test_identical_rows_are_all_kept_and_stay_idempotent(
+    auth_client: AsyncClient, account_factory
+):
+    """A statement may legitimately repeat the same row. All copies must be
+    imported, and re-uploading must still add nothing."""
+    account = await account_factory()
+    csv_bytes = to_csv_bytes(SAVING_HEADER, REPEATED_SAVING_ROWS)
+
+    first = await auth_client.post(
+        f"/uploads?account_id={account['id']}", files=_upload_file(csv_bytes)
+    )
+
+    assert first.status_code == 200, first.text
+    assert first.json()["counters"]["saved"] == len(REPEATED_SAVING_ROWS)
+
+    second = await auth_client.post(
+        f"/uploads?account_id={account['id']}", files=_upload_file(csv_bytes)
+    )
+
+    assert second.status_code == 200, second.text
+    counters = second.json()["counters"]
+    assert counters["saved"] == 0
+    assert counters["duplicates"] == len(REPEATED_SAVING_ROWS)
 
 
 async def test_upload_rejects_unknown_format(

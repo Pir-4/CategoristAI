@@ -36,7 +36,7 @@ class ErrorCode(StrEnum):
     # --- persistence ---
     DUPLICATE_TRANSACTION = auto()
     TRANSACTION_PERSIST_FAILED = auto()
-    DEDUP_HASH_COLLISION = auto()
+    DUPLICATE_IDENTITY_IN_BATCH = auto()
 
     # --- generic ---
     HTTP_ERROR = auto()
