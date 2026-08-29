@@ -10,7 +10,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 # Helpers
 # ---------------------------------------------------------------------------
 
-USER_LOGIN = "test_user"
+USER_LOGIN = "auto_test_user"
 USER_PASSWORD = "test_password"
 
 
@@ -77,7 +77,7 @@ async def test_login_wrong_password(client):
 
 
 async def test_login_unknown_user(client):
-    response = await _login(client, login="ghost_user")
+    response = await _login(client, login="auto_test_ghost")
     assert response.status_code == 401
 
 
