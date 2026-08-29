@@ -22,6 +22,10 @@ class InstitutionParserBase(ABC, Generic[T]):
     def parse(self, raw_transactions: list[dict]) -> list[Transaction]:
         for tr in raw_transactions:
             try:
+                if reason := self.check_to_skip_tr(tr):
+                    self.errors.append({"error": str(reason), "row": tr})
+                    continue
+
                 self.transactions.append(self.parse_row(tr))
             except Exception as ex:
                 self.errors.append({"error": str(ex), "row": tr})
@@ -33,3 +37,6 @@ class InstitutionParserBase(ABC, Generic[T]):
 
     @abstractmethod
     def get_transaction_type(self, inter_transaction: T) -> TransactionType: ...
+
+    @abstractmethod
+    def check_to_skip_tr(self, row: dict) -> str | None: ...

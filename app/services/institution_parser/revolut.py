@@ -82,19 +82,28 @@ class RevolutSavingRow(RevolutRow):
         return re.sub(r"[^\d.]", "", v)
 
 
-class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
+class RevolutParser(InstitutionParserBase[RevolutRow]):
     def parse_row(self, row: dict) -> Transaction:
-        state = row.get("State")
-        if state is not None and state not in ("COMPLETED", "REVERTED"):
-            logger.info(f"Skipping non-completed transaction: {row}")
-            raise ValueError(f"Transaction not completed yet (state={state!r})")
-
         for model in [RevolutAccountRow, RevolutSavingRow]:
             if model.matches(row):
                 tr = self.map_to_transaction(model(**row))
                 tr.raw_data = row
                 return tr
         raise ValueError(f"Unknown CSV format, headers: {list(row.keys())}")
+
+    def check_to_skip_tr(self, row: dict) -> str | None:
+        state = row.get("State")
+        if not state:
+            return None
+        if state in ("COMPLETED", "REVERTED"):
+            return None
+        if state == "PENDING":
+            tr_type = row["Type"]
+            if tr_type == "Card Payment":
+                return None
+            elif tr_type == "Card Refund":
+                return "Refund in pending status"
+        return "Unknown transaction to skip"
 
     def map_to_transaction(self, tr: RevolutRow) -> Transaction:
         if isinstance(tr, RevolutAccountRow):
