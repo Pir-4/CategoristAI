@@ -91,7 +91,9 @@ class RevolutParser(InstitutionParserBase[RevolutAccountRow]):
 
         for model in [RevolutAccountRow, RevolutSavingRow]:
             if model.matches(row):
-                return self.map_to_transaction(model(**row))
+                tr = self.map_to_transaction(model(**row))
+                tr.raw_data = row
+                return tr
         raise ValueError(f"Unknown CSV format, headers: {list(row.keys())}")
 
     def map_to_transaction(self, tr: RevolutRow) -> Transaction:

@@ -9,6 +9,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -75,3 +76,4 @@ class Transaction(BaseModel):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    raw_data: Mapped[dict] = mapped_column(JSON)
