@@ -9,7 +9,6 @@ from app.api.dependencies import get_current_user
 from app.services.transaction_service import (
     get_transactions as svc_get_transactions,
     update_transaction as svc_update_transaction,
-    get_transaction_by_batch_id as svc_get_transaction_by_batch_id,
 )
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -17,16 +16,10 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 @router.get("")
 async def get_transactions(
-    batch_id: UUID | None = None,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[TransactionResponse]:
-    if batch_id:
-        transactions = await svc_get_transaction_by_batch_id(
-            batch_id, session=session, user=user
-        )
-    else:
-        transactions = await svc_get_transactions(session=session, user=user)
+    transactions = await svc_get_transactions(session=session, user=user)
     return [TransactionResponse.model_validate(a) for a in transactions]
 
 

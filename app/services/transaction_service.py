@@ -1,20 +1,43 @@
+import time
+from dataclasses import dataclass, field
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import ErrorCode
+from app.core.exceptions import (
+    DuplicateIdentityInBatchError,
+    TransactionPersistError,
+)
 from app.models import Account, Transaction, User
 from app.schemas import TransactionUpdate
+from app.schemas.upload import UploadIssue
+from app.services.csv_service import identity_key
+from app.services.institution_parser import ParsedTransaction
+
+
+def full_identity_key(transaction: Transaction) -> tuple:
+    """The identity columns plus occurrence — mirrors the unique constraint."""
+    return (*identity_key(transaction), transaction.occurrence)
+
 
 logger = structlog.get_logger(__name__)
+
+
+@dataclass(slots=True)
+class SaveReport:
+    saved: list[Transaction] = field(default_factory=list)
+    duplicates: list[UploadIssue] = field(default_factory=list)
 
 
 async def get_transactions(
     session: AsyncSession,
     user: User,
 ) -> list[Transaction]:
-    logger.info(f"Get transactions for user {user.id}")
+    logger.debug("transactions.list", user_id=str(user.id))
     result = await session.execute(
         select(Transaction)
         .join(Account, Transaction.account_id == Account.id)
@@ -28,7 +51,11 @@ async def get_transaction_by_id(
     session: AsyncSession,
     user: User,
 ) -> Transaction | None:
-    logger.info(f"Get transaction for user {user.id} by id {transaction_id}")
+    logger.debug(
+        "transactions.get",
+        user_id=str(user.id),
+        transaction_id=str(transaction_id),
+    )
     result = await session.execute(
         select(Transaction)
         .join(Account, Transaction.account_id == Account.id)
@@ -44,7 +71,11 @@ async def update_transaction(
     session: AsyncSession,
     user: User,
 ) -> Transaction | None:
-    logger.info(f"Update transaction for user {user.id} by id {transaction_id}")
+    logger.info(
+        "transactions.update",
+        user_id=str(user.id),
+        transaction_id=str(transaction_id),
+    )
     transaction = await get_transaction_by_id(transaction_id, session, user)
     if not transaction:
         return None
@@ -57,16 +88,76 @@ async def update_transaction(
     return transaction
 
 
-async def get_transaction_by_batch_id(
-    batch_id: UUID,
-    session: AsyncSession,
-    user: User,
-) -> list[Transaction]:
-    logger.info(f"Get transaction for user {user.id} by batch id {batch_id}")
-    result = await session.execute(
-        select(Transaction)
-        .join(Account, Transaction.account_id == Account.id)
-        .where(Account.user_id == user.id)
-        .where(Transaction.batch_id == batch_id)
+async def save_transactions(
+    session: AsyncSession, user: User, parsed: list[ParsedTransaction]
+) -> SaveReport:
+    """Persist the parsed rows, skipping ones already in the database."""
+    started = time.perf_counter()
+    logger.debug("transactions.save.started", candidates=len(parsed))
+
+    by_identity: dict[tuple, ParsedTransaction] = {}
+    for item in parsed:
+        key = full_identity_key(item.transaction)
+        existing = by_identity.get(key)
+        if existing is not None:
+            # Occurrence numbering makes this impossible; if it fires, the
+            # numbering in parse_transactions is broken, not the user's file.
+            raise DuplicateIdentityInBatchError(
+                row_a=existing.row.number, row_b=item.row.number
+            )
+        by_identity[key] = item
+
+    identity_columns = (
+        Transaction.account_id,
+        Transaction.start_date,
+        Transaction.merchant,
+        Transaction.amount,
+        Transaction.fee,
+        Transaction.occurrence,
     )
-    return list(result.scalars().all())
+    result = await session.execute(
+        select(*identity_columns).where(
+            tuple_(*identity_columns).in_(by_identity.keys())
+        )
+    )
+    existing_keys = {tuple(row) for row in result.all()}
+    logger.debug(
+        "transactions.dedup.checked",
+        candidates=len(by_identity),
+        existing=len(existing_keys),
+    )
+
+    report = SaveReport()
+    new_transactions: list[Transaction] = []
+    for key, item in by_identity.items():
+        if key in existing_keys:
+            report.duplicates.append(
+                UploadIssue(
+                    row_number=item.row.number,
+                    line_number=item.row.line,
+                    code=ErrorCode.DUPLICATE_TRANSACTION,
+                    message="Transaction already imported",
+                )
+            )
+            continue
+        new_transactions.append(item.transaction)
+
+    session.add_all(new_transactions)
+    try:
+        await session.commit()
+    except SQLAlchemyError as ex:
+        await session.rollback()
+        logger.exception(
+            "transactions.persist_failed", batch_size=len(new_transactions)
+        )
+        raise TransactionPersistError(batch_size=len(new_transactions)) from ex
+
+    report.saved = new_transactions
+    logger.info(
+        "transactions.saved",
+        saved=len(report.saved),
+        duplicates=len(report.duplicates),
+        user_id=str(user.id),
+        duration_ms=round((time.perf_counter() - started) * 1000, 2),
+    )
+    return report

@@ -9,26 +9,17 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    JSON,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import (
-    AccountType,
-    BatchStatus,
+    Institution,
     TransactionStatus,
     TransactionType,
 )
 
 from .base import BaseModel
-
-
-class AccountKeyword(BaseModel):
-    __tablename__ = "account_keywords"
-    __table_args__ = (UniqueConstraint("account_id", "keyword"),)
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
-    keyword: Mapped[str] = mapped_column(String(100))
 
 
 class Account(BaseModel):
@@ -38,35 +29,12 @@ class Account(BaseModel):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(30))
-    account_type: Mapped[AccountType] = mapped_column(String(20))
-    keywords: Mapped[list[AccountKeyword]] = relationship(
-        "AccountKeyword", lazy="selectin"
-    )
-    initial_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    current_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    institution_acc_name: Mapped[str] = mapped_column(String(100))
+    institution: Mapped[Institution] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    balance_updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
-    is_balance_tracked: Mapped[bool] = mapped_column(default=True)
-    is_categorizable: Mapped[bool] = mapped_column(default=True)
     is_active: Mapped[bool] = mapped_column(default=True)
-
-
-class Batch(BaseModel):
-    __tablename__ = "batches"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
-    upload_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    total_count: Mapped[int] = mapped_column(default=0)
-    status: Mapped[BatchStatus] = mapped_column(
-        String(20), default=BatchStatus.PROCESSING
-    )
 
 
 class Category(BaseModel):
@@ -84,46 +52,60 @@ class Category(BaseModel):
 
 
 class Transaction(BaseModel):
+    """A single imported transaction.
+
+    Identity — what counts as "the same transaction" — is expressed by the
+    unique constraint below rather than by a hash computed in Python. Two rows
+    clash only when every one of those columns is literally equal, so there is
+    no digest to keep in sync and no chance of a collision silently dropping a
+    real transaction. Changing the rule means changing the constraint, which
+    Alembic detects and turns into a migration.
+    """
+
     __tablename__ = "transactions"
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id",
+            "start_date",
+            "merchant",
+            "amount",
+            "fee",
+            "occurrence",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    batch_id: Mapped[UUID] = mapped_column(ForeignKey("batches.id"))
-    account_id: Mapped[UUID | None] = mapped_column(ForeignKey("accounts.id"))
-    date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
+
+    occurrence: Mapped[int] = mapped_column(default=0)
+    """How many identical-looking rows preceded this one in the same file.
+
+    Bank exports carry no time of day for some products, so a statement can
+    legitimately contain the same date/merchant/amount twice. This counter is
+    what keeps those two rows distinct while staying stable on re-upload,
+    because file order is stable.
+    """
+
+    # Naive on purpose: a bank statement carries wall-clock local time with no
+    # zone. Storing it in a tz-aware column would make Postgres attach the
+    # session timezone on write and hand back a different value on read, which
+    # breaks equality against the value the parser produced.
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=False))
+    completed_date: Mapped[datetime] = mapped_column(DateTime(timezone=False))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    description: Mapped[str] = mapped_column(String(50))
-    merchant: Mapped[str | None] = mapped_column(String(50))
+    fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    merchant: Mapped[str] = mapped_column(String(150))
+    transaction_type: Mapped[TransactionType] = mapped_column(String(20))
+
     category_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("categories.id")
     )
     status: Mapped[TransactionStatus] = mapped_column(
         String(20), default=TransactionStatus.PENDING
     )
-    transaction_type: Mapped[TransactionType] = mapped_column(String(20))
-    raw_type: Mapped[str] = mapped_column(String(30))
-    dedup_hash: Mapped[str] = mapped_column(String(64), unique=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    is_categorizable: Mapped[bool] = mapped_column(default=True)
-
-
-class BalanceSnapshot(BaseModel):
-    __tablename__ = "balance_snapshots"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
-    batch_id: Mapped[UUID] = mapped_column(ForeignKey("batches.id"))
-    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-
-class AccountInterest(BaseModel):
-    __tablename__ = "account_interests"
-    __table_args__ = (UniqueConstraint("account_id", "year", "month"),)
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id"))
-    year: Mapped[int]
-    month: Mapped[int]
-    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    raw_data: Mapped[dict] = mapped_column(JSON)

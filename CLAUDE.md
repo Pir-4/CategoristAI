@@ -37,6 +37,23 @@ CategoristAI is an intelligent backend for financial transaction categorization 
 4. **Statelessness:** The backend should remain stateless; all state belongs in PostgreSQL or Qdrant.
 5. **Observability:** Log AI prompt inputs and raw outputs for debugging and auditing.
 
+### Testing — MANDATORY reference
+**Read `docs/testing.md` BEFORE writing or changing tests**, or delegate to the
+`test-writer` agent, which already follows it. The governing rule is the
+*minimum* number of tests that still catches a regression — and a suite is only
+finished once you have broken the code on purpose and confirmed the right test
+fails. Tests isolate by transaction rollback and never delete data.
+
+### Logging & Error Handling — MANDATORY reference
+**Read `docs/logging_and_errors.md` BEFORE writing or modifying any logging,
+exception, or error-response code.** It is the single source of truth for this
+project and overrides generic habits. In short: structured events with a stable
+name plus fields (never f-strings); typed exceptions from
+`app/core/exceptions.py` with a stable `ErrorCode` (never bare `ValueError`);
+the three-tier `except` for loops over user data, so bugs surface with a
+traceback instead of being swallowed as bad data; errors always identify the
+offending input (row/line number) and never leak a stacktrace to the user.
+
 ---
 
 ## 4. AI & Agentic Workflow Guidelines

@@ -1,19 +1,22 @@
 from app.schemas.accounts import (
     AccountCreate,
     AccountResponse,
-    KeywordCreate,
-    KeywordResponse,
+    AccountUpdate,
 )
 from app.schemas.auth import LoginRequest, RefreshTokenRequest, TokenResponse
 from app.schemas.expense import (
-    BatchRead,
     CategoryCreate,
     CategoryRead,
     CategoryUpdate,
     ExpenseRead,
 )
+from app.schemas.errors import ErrorResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.schemas.upload import BatchResponse
+from app.schemas.upload import (
+    UploadCounters,
+    UploadIssue,
+    UploadResult,
+)
 from app.schemas.transactions import TransactionResponse, TransactionUpdate
 
 __all__ = [
@@ -26,13 +29,14 @@ __all__ = [
     "CategoryCreate",
     "CategoryUpdate",
     "CategoryRead",
-    "BatchRead",
     "ExpenseRead",
     "AccountCreate",
     "AccountResponse",
-    "KeywordCreate",
-    "KeywordResponse",
-    "BatchResponse",
+    "AccountUpdate",
+    "UploadResult",
+    "UploadCounters",
+    "UploadIssue",
+    "ErrorResponse",
     "TransactionResponse",
     "TransactionUpdate",
 ]

@@ -6,9 +6,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 # Helpers
 # ---------------------------------------------------------------------------
 
-ADMIN_LOGIN = "admin_user"
+ADMIN_LOGIN = "auto_test_admin"
 ADMIN_PASSWORD = "admin_password"
-REGULAR_LOGIN = "regular_user"
+REGULAR_LOGIN = "auto_test_regular"
 REGULAR_PASSWORD = "regular_password"
 
 
@@ -143,11 +143,11 @@ async def test_create_user_as_admin(client, session):
 
     response = await client.post(
         "/users",
-        json={"login": "new_user", "password": "new_password"},
+        json={"login": "auto_test_new", "password": "new_password"},
         headers=_auth(admin_token),
     )
     assert response.status_code == 200
-    assert response.json()["login"] == "new_user"
+    assert response.json()["login"] == "auto_test_new"
 
 
 async def test_create_user_as_regular_user(client):
@@ -155,7 +155,7 @@ async def test_create_user_as_regular_user(client):
 
     response = await client.post(
         "/users",
-        json={"login": "new_user", "password": "new_password"},
+        json={"login": "auto_test_new", "password": "new_password"},
         headers=_auth(token),
     )
     assert response.status_code == 403
@@ -177,11 +177,11 @@ async def test_update_user_login_as_admin(client, session):
 
     response = await client.patch(
         f"/users/{user_id}",
-        json={"login": "updated_login"},
+        json={"login": "auto_test_updated"},
         headers=_auth(admin_token),
     )
     assert response.status_code == 200
-    assert response.json()["login"] == "updated_login"
+    assert response.json()["login"] == "auto_test_updated"
 
 
 async def test_update_user_as_regular_user(client):

@@ -4,8 +4,8 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Account, AccountKeyword, User
-from app.schemas import AccountCreate, KeywordCreate
+from app.models import Account, User
+from app.schemas import AccountCreate, AccountUpdate
 
 logger = structlog.get_logger(__name__)
 
@@ -15,56 +15,29 @@ async def create_account(
     data: AccountCreate,
     user: User,
 ) -> Account:
-    logger.info("Creating account with name: %s", data.name)
+    logger.info(
+        "account.create",
+        name=data.name,
+        institution=str(data.institution),
+        user_id=str(user.id),
+    )
     new_account = Account(
         user_id=user.id,
         name=data.name,
-        account_type=data.account_type,
-        initial_balance=data.initial_balance,
-        is_categorizable=data.is_categorizable,
+        institution=data.institution,
+        institution_acc_name=data.institution_acc_name,
     )
     session.add(new_account)
-    await session.flush()
-    await session.refresh(new_account)
-    for kw in data.keywords:
-        session.add(
-            AccountKeyword(account_id=new_account.id, keyword=kw.keyword)
-        )
     await session.commit()
     await session.refresh(new_account)
     return new_account
-
-
-async def create_keywords(
-    session: AsyncSession, data: KeywordCreate, account: Account
-) -> AccountKeyword:
-    logger.info(f"Creating keyword {data.keyword} for account {account.id}")
-    new_keyword = AccountKeyword(
-        account_id=account.id,
-        keyword=data.keyword,
-    )
-    session.add(new_keyword)
-    await session.commit()
-    await session.refresh(new_keyword)
-    return new_keyword
-
-
-async def delete_keyword(session: AsyncSession, keyword_id: UUID):
-    logger.info(f"Delete keyword by id {keyword_id}")
-    result = await session.execute(
-        select(AccountKeyword).where(AccountKeyword.id == keyword_id)
-    )
-    kw = result.scalar_one_or_none()
-    if kw:
-        await session.delete(kw)
-        await session.commit()
 
 
 async def get_accounts(
     session: AsyncSession,
     user: User,
 ) -> list[Account]:
-    logger.info(f"Get account for user {user.id}")
+    logger.debug("account.list", user_id=str(user.id))
     result = await session.execute(
         select(Account).where(Account.user_id == user.id)
     )
@@ -76,10 +49,33 @@ async def get_account_by_id(
     user: User,
     account_id: UUID,
 ) -> Account | None:
-    logger.info(f"Get account by id {account_id} for user {user.id}")
+    logger.debug(
+        "account.get", account_id=str(account_id), user_id=str(user.id)
+    )
     result = await session.execute(
         select(Account).where(
             Account.user_id == user.id, Account.id == account_id
         )
     )
     return result.scalar_one_or_none()
+
+
+async def update_account(
+    account_id: UUID,
+    data: AccountUpdate,
+    session: AsyncSession,
+    user: User,
+) -> Account | None:
+    logger.info(
+        "account.update", account_id=str(account_id), user_id=str(user.id)
+    )
+    account = await get_account_by_id(session, user, account_id)
+    if not account:
+        return None
+
+    for key, value in data.model_dump(exclude_none=True).items():
+        setattr(account, key, value)
+
+    await session.commit()
+    await session.refresh(account)
+    return account

@@ -3,7 +3,6 @@ from .v1 import (
     user_router,
     user_accounts,
     upload_files_router,
-    batches_router,
     transactions_router,
 )
 
@@ -12,7 +11,6 @@ v1_routers = [
     auth_router,
     user_accounts,
     upload_files_router,
-    batches_router,
     transactions_router,
 ]
 

@@ -93,7 +93,12 @@ With body:
 
 ## Output
 
-Output the commit message as plain text (no code blocks, no markdown formatting) so it can be copied directly without leading spaces.
+Your entire response must be ONLY the commit message text — nothing else.
+
+- Do NOT wrap it in ``` code fences or any other markdown formatting.
+- Do NOT add a preamble, summary, explanation, or branch/phase description before or after it.
+- Do NOT add any commentary like "Here's the commit message:".
+- The first character of your response must be the first character of the title line.
 
 ## User hint (optional)
 

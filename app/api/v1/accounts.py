@@ -1,22 +1,15 @@
-from fastapi import Depends, HTTPException, status, Response
+from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 from uuid import UUID
 
 from app.api.dependencies import get_current_user
 from app.core import AsyncSession, get_session
 from app.models import User
-from app.schemas import (
-    AccountCreate,
-    AccountResponse,
-    KeywordCreate,
-    KeywordResponse,
-)
+from app.schemas import AccountCreate, AccountResponse, AccountUpdate
 from app.services.account_service import (
     create_account as svc_create_account,
     get_accounts as svc_get_account,
-    get_account_by_id,
-    create_keywords as svc_create_keywords,
-    delete_keyword as svc_delete_keyword,
+    update_account as svc_update_account,
 )
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -43,33 +36,19 @@ async def get_accounts(
     return [AccountResponse.model_validate(a) for a in accounts]
 
 
-@router.post("/{account_id}/keywords")
-async def create_keywords(
+@router.patch("/{account_id}")
+async def update_account(
     account_id: UUID,
-    data: KeywordCreate,
+    data: AccountUpdate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-) -> KeywordResponse:
-    account = await get_account_by_id(session, user, account_id)
+) -> AccountResponse:
+    account = await svc_update_account(
+        account_id, data=data, session=session, user=user
+    )
     if not account:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
         )
-    account_keywords = await svc_create_keywords(session, data, account)
-    return KeywordResponse.model_validate(account_keywords)
-
-
-@router.delete("/{account_id}/keywords/{keyword_id}")
-async def delete_keywords(
-    account_id: UUID,
-    keyword_id: UUID,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-) -> None:
-    account = await get_account_by_id(session, user, account_id)
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
-        )
-    await svc_delete_keyword(session, keyword_id)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return AccountResponse.model_validate(account)
