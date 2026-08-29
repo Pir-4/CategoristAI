@@ -15,7 +15,12 @@ async def create_account(
     data: AccountCreate,
     user: User,
 ) -> Account:
-    logger.info("Creating account with name: %s", data.name)
+    logger.info(
+        "account.create",
+        name=data.name,
+        institution=str(data.institution),
+        user_id=str(user.id),
+    )
     new_account = Account(
         user_id=user.id,
         name=data.name,
@@ -32,7 +37,7 @@ async def get_accounts(
     session: AsyncSession,
     user: User,
 ) -> list[Account]:
-    logger.info(f"Get account for user {user.id}")
+    logger.debug("account.list", user_id=str(user.id))
     result = await session.execute(
         select(Account).where(Account.user_id == user.id)
     )
@@ -44,7 +49,9 @@ async def get_account_by_id(
     user: User,
     account_id: UUID,
 ) -> Account | None:
-    logger.info(f"Get account by id {account_id} for user {user.id}")
+    logger.debug(
+        "account.get", account_id=str(account_id), user_id=str(user.id)
+    )
     result = await session.execute(
         select(Account).where(
             Account.user_id == user.id, Account.id == account_id
@@ -59,7 +66,9 @@ async def update_account(
     session: AsyncSession,
     user: User,
 ) -> Account | None:
-    logger.info(f"Update account for user {user.id} by id {account_id}")
+    logger.info(
+        "account.update", account_id=str(account_id), user_id=str(user.id)
+    )
     account = await get_account_by_id(session, user, account_id)
     if not account:
         return None

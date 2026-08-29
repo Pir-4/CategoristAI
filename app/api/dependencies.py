@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -29,6 +30,9 @@ async def get_current_user(
 
     if not user:
         raise credentials_error
+
+    # Every log line in every endpoint gets attributed from here on.
+    structlog.contextvars.bind_contextvars(user_id=str(user.id))
     return user
 
 

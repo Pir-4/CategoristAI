@@ -1,23 +1,41 @@
-import structlog
 import re
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from decimal import Decimal
-from app.core import (
-    TransactionType,
+from typing import ClassVar
+
+import structlog
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core import SkipReason, TransactionType
+from app.core.exceptions import (
+    DescriptionRuleMissingError,
+    MissingColumnError,
+    SavingAmountMissingError,
+    UnexpectedRowModelError,
+    UnknownCsvFormatError,
+    UnknownRowStateError,
+    UnknownSavingOperationError,
+    UnknownTransactionTypeError,
 )
 from app.models import Transaction
+
 from .base import InstitutionParserBase
+from .rows import CsvRow
 
 logger = structlog.get_logger(__name__)
+
+MERCHANT_MAX_LENGTH = 150
+
+COMPLETED_STATES = ("COMPLETED", "REVERTED")
+# Card payments already move the balance while pending - they must be counted.
+PENDING_ALLOWED_TYPES = ("Card Payment",)
 
 
 class RevolutRow(BaseModel):
     @classmethod
-    def matches(cls, row: dict) -> bool:
+    def matches(cls, header: list[str]) -> bool:
         aliases = {f.alias for f in cls.model_fields.values() if f.alias}
-        return aliases.issubset(row.keys())
+        return aliases.issubset(set(header))
 
 
 class RevolutAccountRow(RevolutRow):
@@ -73,7 +91,7 @@ class RevolutSavingRow(RevolutRow):
     def clean_amount(cls, v):
         if not v:
             return None
-        cleaned = re.sub(r"[^\d.]", "", v)  # оставляем только цифры и точку
+        cleaned = re.sub(r"[^\d.]", "", v)  # digits and dot only
         return Decimal(cleaned) if cleaned else None
 
     @field_validator("balance", mode="before")
@@ -82,28 +100,46 @@ class RevolutSavingRow(RevolutRow):
         return re.sub(r"[^\d.]", "", v)
 
 
-class RevolutParser(InstitutionParserBase[RevolutRow]):
-    def parse_row(self, row: dict) -> Transaction:
-        for model in [RevolutAccountRow, RevolutSavingRow]:
-            if model.matches(row):
-                tr = self.map_to_transaction(model(**row))
-                tr.raw_data = row
-                return tr
-        raise ValueError(f"Unknown CSV format, headers: {list(row.keys())}")
+class RevolutParser(InstitutionParserBase):
+    ROW_MODELS: ClassVar[tuple[type[RevolutRow], ...]] = (
+        RevolutAccountRow,
+        RevolutSavingRow,
+    )
 
-    def check_to_skip_tr(self, row: dict) -> str | None:
-        state = row.get("State")
-        if not state:
+    def detect_format(self, header: list[str]) -> type[RevolutRow]:
+        for model in self.ROW_MODELS:
+            if model.matches(header):
+                logger.debug("csv.format.detected", row_format=model.__name__)
+                return model
+        raise UnknownCsvFormatError(
+            headers=header,
+            known_formats=[m.__name__ for m in self.ROW_MODELS],
+        )
+
+    def parse_row(self, row: CsvRow) -> Transaction:
+        transaction = self.map_to_transaction(self.row_model(**row.data))
+        transaction.raw_data = row.data
+        return transaction
+
+    def check_to_skip_tr(self, row: CsvRow) -> SkipReason | None:
+        if self.row_model is not RevolutAccountRow:
+            # Savings exports have no State column at all.
             return None
-        if state in ("COMPLETED", "REVERTED"):
+
+        state = row.data.get("State")
+        if not state or state in COMPLETED_STATES:
             return None
+
         if state == "PENDING":
-            tr_type = row["Type"]
-            if tr_type == "Card Payment":
+            tr_type = row.data.get("Type")
+            if tr_type is None:
+                raise MissingColumnError(column="Type")
+            if tr_type in PENDING_ALLOWED_TYPES:
                 return None
-            elif tr_type == "Card Refund":
-                return "Refund in pending status"
-        return "Unknown transaction to skip"
+            if tr_type == "Card Refund":
+                return SkipReason.PENDING_REFUND
+
+        raise UnknownRowStateError(state=state, row_type=row.data.get("Type"))
 
     def map_to_transaction(self, tr: RevolutRow) -> Transaction:
         if isinstance(tr, RevolutAccountRow):
@@ -111,7 +147,7 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
         if isinstance(tr, RevolutSavingRow):
             return self.map_saving_acc_to_transaction(tr)
 
-        raise ValueError(f"Unexpected transaction type {tr}")
+        raise UnexpectedRowModelError(model=type(tr).__name__)
 
     def map_account_to_transaction(self, tr: RevolutAccountRow) -> Transaction:
         transaction_type = self.get_transaction_type(tr)
@@ -122,7 +158,7 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
             amount=tr.amount,
             fee=tr.fee,
             transaction_type=transaction_type,
-            merchant=description,
+            merchant=description[:MERCHANT_MAX_LENGTH],
         )
 
     def map_saving_acc_to_transaction(
@@ -134,8 +170,11 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
             start_date=tr.date,
             completed_date=tr.date,
             amount=amount,
+            # Explicit: the column default only applies at INSERT, so leaving
+            # this None would put the string "None" into the dedup hash.
+            fee=Decimal(0),
             transaction_type=transaction_type,
-            merchant=tr.description,
+            merchant=tr.description[:MERCHANT_MAX_LENGTH],
         )
 
     def get_transaction_type(self, in_tr: RevolutAccountRow) -> TransactionType:
@@ -146,37 +185,49 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
             ):
                 return TransactionType.INTERNAL_TRANSFER
             return TransactionType.EXTERNAL_TRANSFER
-        elif in_tr.transaction_type in "Charge":
+        if in_tr.transaction_type == "Charge":
             return TransactionType.EXPENSE
-        elif in_tr.amount > 0:
+        if in_tr.amount > 0:
             return TransactionType.INCOME
-        elif in_tr.amount < 0:
+        if in_tr.amount < 0:
             return TransactionType.EXPENSE
 
-        raise ValueError(f"Unknown type {in_tr}")
+        raise UnknownTransactionTypeError(
+            raw_type=in_tr.transaction_type, amount=str(in_tr.amount)
+        )
 
     @staticmethod
-    def get_saving_transaction_type(in_tr: RevolutSavingRow) -> TransactionType:
+    def get_saving_transaction_type(
+        in_tr: RevolutSavingRow,
+    ) -> TransactionType:
         if in_tr.description == "Gross Interest":
             return TransactionType.INTEREST
         if in_tr.description in ("Withdrawal", "Deposit"):
             return TransactionType.INTERNAL_TRANSFER
-        raise ValueError(f"Unknown type {in_tr}")
+        raise UnknownSavingOperationError(description=in_tr.description)
 
     @staticmethod
     def get_amount_saving_transaction(in_tr: RevolutSavingRow) -> Decimal:
         if in_tr.description in ("Gross Interest", "Deposit"):
+            if in_tr.money_in is None:
+                raise SavingAmountMissingError(
+                    description=in_tr.description, column="Money in"
+                )
             return in_tr.money_in
         if in_tr.description == "Withdrawal":
+            if in_tr.money_out is None:
+                raise SavingAmountMissingError(
+                    description=in_tr.description, column="Money out"
+                )
             return -1 * in_tr.money_out
-        raise ValueError(f"Unknown type {in_tr}")
+        raise UnknownSavingOperationError(description=in_tr.description)
 
     @staticmethod
-    def edit_description(tr_type: TransactionType, description: str):
+    def edit_description(tr_type: TransactionType, description: str) -> str:
         if tr_type == TransactionType.EXPENSE:
             return description
 
-        if tr_type in [TransactionType.INCOME]:
+        if tr_type == TransactionType.INCOME:
             return re.sub(
                 r"^Payment\s+(From)\s+",
                 "",
@@ -184,10 +235,10 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
                 flags=re.IGNORECASE,
             )
 
-        if tr_type in [
+        if tr_type in (
             TransactionType.INTERNAL_TRANSFER,
             TransactionType.EXTERNAL_TRANSFER,
-        ]:
+        ):
             return re.sub(
                 r"^(Transfer\s+)?(To|From)\s+",
                 "",
@@ -195,4 +246,6 @@ class RevolutParser(InstitutionParserBase[RevolutRow]):
                 flags=re.IGNORECASE,
             )
 
-        raise ValueError(f"Unknown type {tr_type} for descriptor {description}")
+        raise DescriptionRuleMissingError(
+            transaction_type=str(tr_type), description=description
+        )

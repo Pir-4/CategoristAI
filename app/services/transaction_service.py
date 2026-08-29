@@ -1,20 +1,36 @@
+import time
+from dataclasses import dataclass, field
 from uuid import UUID
 
 import structlog
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import ErrorCode
+from app.core.exceptions import (
+    DedupHashCollisionError,
+    TransactionPersistError,
+)
 from app.models import Account, Transaction, User
 from app.schemas import TransactionUpdate
+from app.schemas.upload import UploadIssue
+from app.services.institution_parser import ParsedTransaction
 
 logger = structlog.get_logger(__name__)
+
+
+@dataclass(slots=True)
+class SaveReport:
+    saved: list[Transaction] = field(default_factory=list)
+    duplicates: list[UploadIssue] = field(default_factory=list)
 
 
 async def get_transactions(
     session: AsyncSession,
     user: User,
 ) -> list[Transaction]:
-    logger.info(f"Get transactions for user {user.id}")
+    logger.debug("transactions.list", user_id=str(user.id))
     result = await session.execute(
         select(Transaction)
         .join(Account, Transaction.account_id == Account.id)
@@ -28,7 +44,11 @@ async def get_transaction_by_id(
     session: AsyncSession,
     user: User,
 ) -> Transaction | None:
-    logger.info(f"Get transaction for user {user.id} by id {transaction_id}")
+    logger.debug(
+        "transactions.get",
+        user_id=str(user.id),
+        transaction_id=str(transaction_id),
+    )
     result = await session.execute(
         select(Transaction)
         .join(Account, Transaction.account_id == Account.id)
@@ -44,7 +64,11 @@ async def update_transaction(
     session: AsyncSession,
     user: User,
 ) -> Transaction | None:
-    logger.info(f"Update transaction for user {user.id} by id {transaction_id}")
+    logger.info(
+        "transactions.update",
+        user_id=str(user.id),
+        transaction_id=str(transaction_id),
+    )
     transaction = await get_transaction_by_id(transaction_id, session, user)
     if not transaction:
         return None
@@ -58,40 +82,70 @@ async def update_transaction(
 
 
 async def save_transactions(
-    session: AsyncSession, user: User, transactions: list[Transaction]
-) -> list[Transaction]:
-    logger.info(f"Save transactions for user {user.id}")
+    session: AsyncSession, user: User, parsed: list[ParsedTransaction]
+) -> SaveReport:
+    """Persist the parsed rows, skipping ones already in the database."""
+    started = time.perf_counter()
+    logger.debug("transactions.save.started", candidates=len(parsed))
 
-    unique_by_hash: dict[str, Transaction] = {}
-    for tr in transactions:
-        if tr.dedup_hash in unique_by_hash:
-            message = (
-                f"Hash duplication in transaction list: "
-                f"tr1 {unique_by_hash[tr.dedup_hash]}, tr2: {tr}"
+    by_hash: dict[str, ParsedTransaction] = {}
+    for item in parsed:
+        dedup_hash = item.transaction.dedup_hash
+        existing = by_hash.get(dedup_hash)
+        if existing is not None:
+            # Occurrence counting makes this impossible; if it fires it is
+            # a bug in build_dedup_hash, not bad user data.
+            raise DedupHashCollisionError(
+                dedup_hash=dedup_hash,
+                row_a=existing.row.number,
+                row_b=item.row.number,
             )
-            logger.warn(message)
-            raise ValueError(message)
-        unique_by_hash[tr.dedup_hash] = tr
+        by_hash[dedup_hash] = item
 
     result = await session.execute(
         select(Transaction.dedup_hash).where(
-            Transaction.dedup_hash.in_(unique_by_hash.keys())
+            Transaction.dedup_hash.in_(by_hash.keys())
         )
     )
     existing_hashes = set(result.scalars().all())
+    logger.debug(
+        "transactions.dedup.checked",
+        candidates=len(by_hash),
+        existing=len(existing_hashes),
+    )
 
-    new_transactions = [
-        tr
-        for dedup_hash, tr in unique_by_hash.items()
-        if dedup_hash not in existing_hashes
-    ]
+    report = SaveReport()
+    new_transactions: list[Transaction] = []
+    for dedup_hash, item in by_hash.items():
+        if dedup_hash in existing_hashes:
+            report.duplicates.append(
+                UploadIssue(
+                    row_number=item.row.number,
+                    line_number=item.row.line,
+                    code=ErrorCode.DUPLICATE_TRANSACTION,
+                    message="Transaction already imported",
+                    details={"dedup_hash": dedup_hash},
+                )
+            )
+            continue
+        new_transactions.append(item.transaction)
 
     session.add_all(new_transactions)
-    await session.commit()
+    try:
+        await session.commit()
+    except SQLAlchemyError as ex:
+        await session.rollback()
+        logger.exception(
+            "transactions.persist_failed", batch_size=len(new_transactions)
+        )
+        raise TransactionPersistError(batch_size=len(new_transactions)) from ex
 
-    skipped = len(transactions) - len(new_transactions)
+    report.saved = new_transactions
     logger.info(
-        f"Saved {len(new_transactions)} transactions, "
-        f"skipped {skipped} duplicates for user {user.id}"
+        "transactions.saved",
+        saved=len(report.saved),
+        duplicates=len(report.duplicates),
+        user_id=str(user.id),
+        duration_ms=round((time.perf_counter() - started) * 1000, 2),
     )
-    return new_transactions
+    return report

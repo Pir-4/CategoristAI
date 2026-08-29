@@ -10,8 +10,13 @@ from app.schemas.expense import (
     CategoryUpdate,
     ExpenseRead,
 )
+from app.schemas.errors import ErrorResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.schemas.upload import UploadResult
+from app.schemas.upload import (
+    UploadCounters,
+    UploadIssue,
+    UploadResult,
+)
 from app.schemas.transactions import TransactionResponse, TransactionUpdate
 
 __all__ = [
@@ -29,6 +34,9 @@ __all__ = [
     "AccountResponse",
     "AccountUpdate",
     "UploadResult",
+    "UploadCounters",
+    "UploadIssue",
+    "ErrorResponse",
     "TransactionResponse",
     "TransactionUpdate",
 ]
