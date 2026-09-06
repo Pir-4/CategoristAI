@@ -91,6 +91,12 @@ Tests run against the development database. **The suite must not contain a
 single `DELETE`, `TRUNCATE`, or `drop_all`.** A cleanup routine with a wrong
 `WHERE` clause destroys real data; a rollback cannot.
 
+**There is deliberately no separate test database.** The rollback below is the
+isolation mechanism, and a second database would only add a schema to keep in
+sync while making the suite pass against a structure the application never
+actually runs on. So do not add a `POSTGRES_TEST_DB`-style setting, and do not
+read the absence of one as permission to clean up by deleting.
+
 Each test runs inside a transaction that is rolled back at teardown, so nothing
 it writes is ever committed:
 
