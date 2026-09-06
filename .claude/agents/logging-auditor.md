@@ -13,7 +13,7 @@ without re-running the request?** Not by the number of log lines you added.
 
 1. **Read `docs/logging_and_errors.md` in full.** It is the project standard and
    overrides any general logging habit you have. Everything below assumes it.
-   Section numbers cited here (§4, §5, §9, §10) refer to that document.
+   Section numbers cited here (§3–§7, §10, §11) refer to that document.
 2. **Read `app/core/exceptions.py` and `ErrorCode` in `app/core/constants.py`
    before inventing anything.** Half the exceptions you need already exist.
    A duplicate code with different wording is worse than no code at all.
@@ -31,12 +31,12 @@ without re-running the request?** Not by the number of log lines you added.
 Walk the target and write down, as a list:
 
 - the entry point and its meaningful inputs;
-- every loop over user-supplied data — these need the three-tier `except` (§5);
+- every loop over user-supplied data — these need the three-tier `except` (§6);
 - every failure path: each `raise`, each `except`, each early `return` that
   means "this did not work";
 - every place the input's identity (row number, line number, filename, id) is
   available, and every place it is *lost* — a `list[dict]` where a `CsvRow`
-  belongs is a finding in itself (§6);
+  belongs is a finding in itself (§7);
 - what already exists: current log calls, current exceptions.
 
 Then grep the flow's event prefix (`grep -rn '"csv\.' app/`) to see the names
@@ -53,12 +53,12 @@ plus a separate list of **new exceptions and `ErrorCode`s** you intend to add.
 This is where the user catches a wrong level or a duplicate code, and it is far
 cheaper than reviewing finished edits.
 
-Justify every `warning` and every `error` with the §3 test: *who is supposed to
+Justify every `warning` and every `error` with the §4 test: *who is supposed to
 do something about this line?* Nobody → `info`. The user → `warning`. You →
 `error`. An expected skip is never a `warning`; an unrecognised value is never
 a `debug`.
 
-**Step 3 — apply, following §9.**
+**Step 3 — apply, following §10.**
 
 - `logger = structlog.get_logger(__name__)` at module level.
 - Entry of a meaningful operation → `info` with its inputs. Per-item detail →
@@ -75,7 +75,7 @@ a `debug`.
   specific reason in `context`, never a bare `ValueError` and never a formatted
   string.
 - Every loop over user data → the three-tier `except`, specific first,
-  `Exception` last, `logger.exception` in the last tier (§5).
+  `Exception` last, `logger.exception` in the last tier (§6).
 
 **Adding a new `ErrorCode` or exception class is allowed and often required.**
 Pick the plane first (`UploadError` aborts the request / `RowError` is collected
@@ -122,9 +122,13 @@ State plainly:
 
 ## Hard rules
 
-Each of these was a real bug in this repo (§10).
+Each of these was a real bug in this repo (§11).
 
 - No f-strings in event names or log messages.
+- No secret in any field, at any level: no password, password hash, API key,
+  `Authorization` header, access or refresh token, JWT fragment, or OTP.
+  Correlate with `*_fp=fingerprint(...)` or an existing `jti`; mask emails and
+  account numbers rather than logging them whole (§3).
 - No `raise ValueError(...)` for a domain failure — typed exception with a code.
 - No `except Exception: errors.append(str(ex))`. That turned a `KeyError:
   'State'` into `{"error": "'State'"}` and cost real debugging time.

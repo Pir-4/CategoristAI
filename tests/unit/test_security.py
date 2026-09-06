@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.exceptions import InvalidTokenError
 from app.core.security import (
     create_access_token,
     decode_access_token,
@@ -46,5 +47,5 @@ def test_access_token_contains_sub():
 
 
 def test_decode_invalid_token_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenError):
         decode_access_token("this.is.garbage")

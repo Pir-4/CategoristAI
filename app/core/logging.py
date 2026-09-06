@@ -16,6 +16,7 @@ Here everything converges on a single handler through
                                         -> one renderer
 """
 
+import hashlib
 import logging
 import logging.handlers
 import sys
@@ -29,6 +30,24 @@ from .config import settings
 from .constants import LogFormat
 
 _configured = False
+
+# Number of hex chars kept from the digest: enough to join lines within one
+# incident, useless as attack surface.
+_FINGERPRINT_CHARS = 12
+
+
+def fingerprint(value: str) -> str:
+    """Stable, non-reversible handle for correlating a secret across lines.
+
+    A secret is never logged, not even truncated (see the standard: JWT
+    prefixes are identical per issuer, and password ends are a hint). Log
+    this instead, in a field suffixed `_fp` so it cannot be mistaken for the
+    value itself.
+    """
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[
+        :_FINGERPRINT_CHARS
+    ]
+
 
 # Third-party loggers we do not want at DEBUG even when we are.
 THIRD_PARTY_LEVELS = {

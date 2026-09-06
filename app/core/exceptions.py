@@ -4,6 +4,7 @@ Three planes, kept apart on purpose:
 
 * ``UploadError``   - file level. Nothing can be imported, abort the request.
 * ``RowError``      - row level. Collected, never aborts the import.
+* ``AuthError``     - the caller is not who they claim to be. Aborts with 401.
 * ``InvariantError`` - "this cannot happen". A bug, fail loud with a 500.
 
 Every class carries a stable ``code`` so two errors with similar wording are
@@ -49,6 +50,17 @@ class RowError(AppError):
     """Row level: this row is bad, the rest of the file is still fine."""
 
     http_status = 422
+
+
+class AuthError(AppError):
+    """Request level: authentication failed. Nothing else can proceed.
+
+    ``context`` is echoed to the client in ``details``, so nothing that would
+    let a caller distinguish "no such login" from "wrong password" may be put
+    there. The specific reason belongs in the log line, which is ours.
+    """
+
+    http_status = 401
 
 
 class InvariantError(AppError):
@@ -160,3 +172,64 @@ class DuplicateIdentityInBatchError(InvariantError):
 
 class UnexpectedRowModelError(InvariantError):
     message = "Parsed row model has no mapping to a Transaction"
+
+
+# --------------------------------------------------------------------------
+# Authentication / authorisation
+# --------------------------------------------------------------------------
+
+
+class InvalidCredentialsError(AuthError):
+    """Deliberately says nothing about *which* half was wrong.
+
+    Raise it with no context: an "unknown login" hint here would turn the
+    login endpoint into a user-enumeration oracle. The log line at the call
+    site carries the real reason.
+    """
+
+    code = ErrorCode.INVALID_CREDENTIALS
+    message = "Login or password is incorrect"
+
+
+class InvalidTokenError(AuthError):
+    code = ErrorCode.INVALID_TOKEN
+    message = "Could not validate credentials"
+
+
+class TokenExpiredError(AuthError):
+    code = ErrorCode.TOKEN_EXPIRED
+    message = "Token has expired"
+
+
+class InvalidRefreshTokenError(AuthError):
+    code = ErrorCode.REFRESH_TOKEN_INVALID
+    message = "Refresh token is unknown or has already been used"
+
+
+class PermissionDeniedError(AppError):
+    code = ErrorCode.PERMISSION_DENIED
+    http_status = 403
+    message = "You do not have permission to perform this action"
+
+
+# --------------------------------------------------------------------------
+# Users
+# --------------------------------------------------------------------------
+
+
+class UserNotFoundError(AppError):
+    code = ErrorCode.USER_NOT_FOUND
+    http_status = 404
+    message = "User not found"
+
+
+class LoginAlreadyTakenError(AppError):
+    code = ErrorCode.LOGIN_ALREADY_TAKEN
+    http_status = 409
+    message = "This login is already taken"
+
+
+class UnexpectedUpdateFieldError(InvariantError):
+    """A field exists on the update schema that the service cannot apply."""
+
+    message = "User update payload has a field with no handler"

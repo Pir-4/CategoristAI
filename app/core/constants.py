@@ -38,6 +38,17 @@ class ErrorCode(StrEnum):
     TRANSACTION_PERSIST_FAILED = auto()
     DUPLICATE_IDENTITY_IN_BATCH = auto()
 
+    # --- authentication / authorisation ---
+    INVALID_CREDENTIALS = auto()
+    INVALID_TOKEN = auto()
+    TOKEN_EXPIRED = auto()
+    REFRESH_TOKEN_INVALID = auto()
+    PERMISSION_DENIED = auto()
+
+    # --- users ---
+    USER_NOT_FOUND = auto()
+    LOGIN_ALREADY_TAKEN = auto()
+
     # --- generic ---
     HTTP_ERROR = auto()
     REQUEST_VALIDATION_FAILED = auto()
