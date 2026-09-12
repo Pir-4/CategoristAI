@@ -6,7 +6,7 @@ from csv import DictReader
 import structlog
 from fastapi import UploadFile
 
-from app.core import settings
+from app.core import elapsed_ms, settings
 from app.core.exceptions import (
     CsvDecodeError,
     DuplicateHeadersError,
@@ -124,6 +124,6 @@ async def parse_transactions(
         parsed=len(outcome.parsed),
         skipped=len(outcome.skipped),
         failed=len(outcome.failed),
-        duration_ms=round((time.perf_counter() - started) * 1000, 2),
+        duration_ms=elapsed_ms(started),
     )
     return outcome, total_rows

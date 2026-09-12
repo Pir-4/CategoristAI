@@ -7,13 +7,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core import elapsed_ms
+
 logger = structlog.get_logger(__name__)
 
 REQUEST_ID_HEADER = "X-Request-ID"
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 2)
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -45,15 +43,15 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception:
-            logger.exception(
-                "http.request.crashed", duration_ms=_elapsed_ms(started)
+            logger.error(
+                "http.request.crashed", duration_ms=elapsed_ms(started)
             )
             raise
 
         logger.info(
             "http.request.finished",
             status_code=response.status_code,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
         )
         response.headers[REQUEST_ID_HEADER] = request_id
         return response

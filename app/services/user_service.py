@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import hash_password_async
+from app.core import elapsed_ms, hash_password_async
 from app.core.exceptions import (
     LoginAlreadyTakenError,
     UnexpectedUpdateFieldError,
@@ -16,10 +16,6 @@ from app.models import User
 from app.schemas import UserCreate, UserUpdate
 
 logger = structlog.get_logger(__name__)
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 2)
 
 
 async def get_user(session: AsyncSession, user_id: UUID) -> User | None:
@@ -36,7 +32,7 @@ async def get_user_by_login(session: AsyncSession, login: str) -> User | None:
 async def get_users(session: AsyncSession) -> list[User]:
     result = await session.execute(select(User))
     users = list(result.scalars().all())
-    logger.debug("user.list", count=len(users))
+    logger.debug("users.listed", count=len(users))
     return users
 
 
@@ -63,7 +59,7 @@ async def create_user(session: AsyncSession, data: UserCreate) -> User:
         error = LoginAlreadyTakenError(login=data.login)
         logger.warning(
             "user.create.rejected",
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             **error.log_fields(),
         )
         raise error from ex
@@ -74,7 +70,7 @@ async def create_user(session: AsyncSession, data: UserCreate) -> User:
         user_id=str(new_user.id),
         login=new_user.login,
         role=str(new_user.role),
-        duration_ms=_elapsed_ms(started),
+        duration_ms=elapsed_ms(started),
     )
     return new_user
 
@@ -127,6 +123,6 @@ async def update_user(
         user_id=str(user.id),
         fields=changed_fields,
         password_changed="password" in payload,
-        duration_ms=_elapsed_ms(started),
+        duration_ms=elapsed_ms(started),
     )
     return user

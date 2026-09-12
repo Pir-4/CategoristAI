@@ -9,6 +9,7 @@ from app.core import (
     AsyncSession,
     burn_password_time_async,
     create_access_token,
+    elapsed_ms,
     fingerprint,
     get_session,
     verify_password_async,
@@ -43,10 +44,6 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 2)
-
-
 @router.post("/register")
 async def register_user(
     user: UserCreate, session: AsyncSession = Depends(get_session)
@@ -59,7 +56,7 @@ async def register_user(
         error = LoginAlreadyTakenError(login=user.login)
         logger.warning(
             "auth.register.rejected",
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             **error.log_fields(),
         )
         raise error
@@ -73,7 +70,7 @@ async def register_user(
         "auth.register.completed",
         user_id=str(new_user.id),
         login=new_user.login,
-        duration_ms=_elapsed_ms(started),
+        duration_ms=elapsed_ms(started),
     )
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
@@ -102,7 +99,7 @@ async def login_user(
             "auth.login.failed",
             login=r_login.login,
             reason="user_unknown",
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             **InvalidCredentialsError().log_fields(),
         )
         raise InvalidCredentialsError()
@@ -113,7 +110,7 @@ async def login_user(
             login=r_login.login,
             user_id=str(user.id),
             reason="bad_password",
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             **InvalidCredentialsError().log_fields(),
         )
         raise InvalidCredentialsError()
@@ -125,7 +122,7 @@ async def login_user(
         "auth.login.succeeded",
         user_id=str(user.id),
         login=user.login,
-        duration_ms=_elapsed_ms(started),
+        duration_ms=elapsed_ms(started),
     )
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
@@ -159,13 +156,13 @@ async def logout_user(
             "auth.logout.rejected",
             reason="unknown" if db_rf_token is None else "not_owner",
             token_fp=token_fp,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             **error.log_fields(),
         )
         raise error
 
     await delete_refresh_token(session, db_rf_token)
-    logger.info("auth.logout.completed", duration_ms=_elapsed_ms(started))
+    logger.info("auth.logout.completed", duration_ms=elapsed_ms(started))
     return {"message": "Successfully logged out"}
 
 
@@ -194,7 +191,7 @@ async def refresh_token(
         user_id=str(user_id),
         rotated_from_fp=presented_fp,
         rotated_to_fp=fingerprint(new_refresh_token),
-        duration_ms=_elapsed_ms(started),
+        duration_ms=elapsed_ms(started),
     )
     return TokenResponse(
         access_token=access_token, refresh_token=new_refresh_token

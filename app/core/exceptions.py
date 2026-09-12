@@ -75,12 +75,6 @@ class InvariantError(AppError):
 # --------------------------------------------------------------------------
 
 
-class AccountNotFoundError(UploadError):
-    code = ErrorCode.ACCOUNT_NOT_FOUND
-    http_status = 404
-    message = "Account not found"
-
-
 class UnsupportedInstitutionError(UploadError):
     code = ErrorCode.UNSUPPORTED_INSTITUTION
     message = "No CSV parser is available for this institution"
@@ -210,6 +204,64 @@ class PermissionDeniedError(AppError):
     code = ErrorCode.PERMISSION_DENIED
     http_status = 403
     message = "You do not have permission to perform this action"
+
+
+# --------------------------------------------------------------------------
+# Accounts
+# --------------------------------------------------------------------------
+
+
+class AccountNotFoundError(AppError):
+    """No such account *for this user*.
+
+    Raised for an account owned by somebody else as well: telling the caller
+    "exists, but not yours" would let them enumerate other users' accounts.
+    """
+
+    code = ErrorCode.ACCOUNT_NOT_FOUND
+    http_status = 404
+    message = "Account not found"
+
+
+class AccountNameAlreadyTakenError(AppError):
+    """Violates the (user_id, name) unique constraint on accounts."""
+
+    code = ErrorCode.ACCOUNT_NAME_ALREADY_TAKEN
+    http_status = 409
+    message = "You already have an account with this name"
+
+
+# --------------------------------------------------------------------------
+# Transactions
+# --------------------------------------------------------------------------
+
+
+class TransactionNotFoundError(AppError):
+    """No such transaction under any account this user owns. See above."""
+
+    code = ErrorCode.TRANSACTION_NOT_FOUND
+    http_status = 404
+    message = "Transaction not found"
+
+
+class TransactionCategoryNotFoundError(AppError):
+    """The update points at a category that does not exist."""
+
+    code = ErrorCode.TRANSACTION_CATEGORY_NOT_FOUND
+    http_status = 422
+    message = "The requested category does not exist"
+
+
+class DuplicateTransactionError(AppError):
+    """The edited transaction collides with one already stored.
+
+    Same ``ErrorCode`` as the per-row duplicate reported by an upload: from
+    the client's side it is the same fact - this transaction already exists.
+    """
+
+    code = ErrorCode.DUPLICATE_TRANSACTION
+    http_status = 409
+    message = "A transaction with these details already exists"
 
 
 # --------------------------------------------------------------------------

@@ -47,6 +47,13 @@ parser.selected        csv.format.detected    transactions.saved
 Group by prefix so `grep "csv.row."` gives you the per-row story and
 `grep "upload."` the lifecycle.
 
+**Cardinality follows the event, not the module.** The prefix is singular when
+the event concerns one entity and plural when it concerns a set or a batch:
+`account.created`, `transaction.updated`, but `accounts.listed` and
+`transactions.saved`. One module legitimately emits both. A cheap `debug` probe
+that fires *before* the query keeps the short `subject.verb` form — `user.get`,
+`account.get` — because nothing has happened yet to put in the past tense.
+
 ### Fields
 
 ```python
@@ -56,7 +63,7 @@ logger.info(
     parsed=len(outcome.parsed),
     skipped=len(outcome.skipped),
     failed=len(outcome.failed),
-    duration_ms=round((time.perf_counter() - started) * 1000, 2),
+    duration_ms=elapsed_ms(started),
 )
 ```
 
@@ -66,6 +73,11 @@ Rules:
 - Reuse field names across modules: `row_number`, `line_number`, `error_code`,
   `duration_ms`, `user_id`, `account_id`, `filename`. Consistent names are what
   makes cross-module filtering possible.
+- `duration_ms` is always `elapsed_ms(started)` from `app.core`, with `started`
+  taken from `time.perf_counter()`. Never write the arithmetic at the call site:
+  the helper fixes the precision, so durations from different modules stay
+  comparable, and it keeps the wall clock — which NTP can move backwards — out
+  of the measurement.
 - `request_id`, `user_id`, `account_id`, `method`, `path` are bound once into
   contextvars and appear automatically — do not pass them by hand.
 - Bind per-item context instead of repeating it:
@@ -198,12 +210,38 @@ Consequences to respect:
 - An expected skip is **never** `warning`. A pending Card Refund is normal.
 - An unrecognised value is **never** `debug`. It means a gap in our rules.
 - `error` without a traceback is nearly useless — use `logger.exception(...)`
-  inside `except`, which attaches `exc_info` for you.
+  inside `except`, which attaches `exc_info` for you. The one exception is a
+  re-raise: see *one incident, one traceback* below.
 - Derive the level rather than choosing it by hand where possible:
   ```python
   log_event = logger.warning if outcome.failed else logger.info
   log_event("csv.parse.done", ...)
   ```
+
+### One incident, one traceback
+
+An exception that is logged and then re-raised passes several layers, and if
+each one calls `logger.exception` the same stack is written three times. That
+is not triple the evidence — it is one incident that now looks like three, and
+every `error`-rate alert counts it three times.
+
+The traceback belongs to the **outermost** handler, the one that turns the
+exception into a response: `http.unhandled_exception`. Every layer below it
+logs `logger.error` **without** `exc_info`, carrying only what the outer layer
+cannot see — the transaction id, the field names, the SQLSTATE, how long the
+request ran. The lines are joined by `request_id`, which is what it is for.
+
+```python
+except IntegrityError:
+    # Inner layer: context, no traceback. Re-raised, so it will be logged.
+    log.error("transaction.update.failed", fields=fields, sqlstate=state)
+    raise
+```
+
+The rule applies only when the exception **escapes**. Where it is swallowed —
+tier 3 of the three-tier `except` in §6, which keeps the import running — that
+layer is the last one that will ever see it, so it must use
+`logger.exception`.
 
 ---
 

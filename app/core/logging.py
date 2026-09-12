@@ -20,6 +20,7 @@ import hashlib
 import logging
 import logging.handlers
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +48,19 @@ def fingerprint(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[
         :_FINGERPRINT_CHARS
     ]
+
+
+def elapsed_ms(started: float) -> float:
+    """Milliseconds since ``started``, for the standard ``duration_ms`` field.
+
+    Take ``started`` from ``time.perf_counter()``, never ``time.time()``: the
+    wall clock jumps when NTP corrects it, which can make a duration negative.
+
+    The rounding lives here rather than at the call site so that every
+    ``duration_ms`` in the logs carries the same precision - otherwise
+    aggregations across modules compare numbers of differing shape.
+    """
+    return round((time.perf_counter() - started) * 1000, 2)
 
 
 # Third-party loggers we do not want at DEBUG even when we are.

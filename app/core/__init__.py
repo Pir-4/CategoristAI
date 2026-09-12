@@ -15,6 +15,7 @@ from app.core.database import get_session
 from app.core.exceptions import AppError, AuthError, RowError, UploadError
 from app.core.logging import (
     configure_third_party_loggers,
+    elapsed_ms,
     fingerprint,
     setup_logging,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "decode_access_token",
     "create_refresh_token",
     "create_token_expires_at",
+    "elapsed_ms",
     "fingerprint",
     "setup_logging",
     "configure_third_party_loggers",
