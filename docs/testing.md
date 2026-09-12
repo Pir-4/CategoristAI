@@ -91,6 +91,12 @@ Tests run against the development database. **The suite must not contain a
 single `DELETE`, `TRUNCATE`, or `drop_all`.** A cleanup routine with a wrong
 `WHERE` clause destroys real data; a rollback cannot.
 
+**There is deliberately no separate test database.** The rollback below is the
+isolation mechanism, and a second database would only add a schema to keep in
+sync while making the suite pass against a structure the application never
+actually runs on. So do not add a `POSTGRES_TEST_DB`-style setting, and do not
+read the absence of one as permission to clean up by deleting.
+
 Each test runs inside a transaction that is rolled back at teardown, so nothing
 it writes is ever committed:
 
@@ -206,7 +212,57 @@ name the gap if you choose to accept it).
 
 ---
 
-## 8. Checklist
+## 8. Where things live
+
+Two test directories, matching the two layers of §3, and nothing else:
+
+```
+tests/
+    conftest.py         fixtures and pytest hooks only - never imported
+    helpers.py          behaviour: functions and types the tests call
+    test_data/          data: payloads, cases, expected values
+    unit/               pure. No database, no network, no mocks
+    e2e/                the real app, the real database
+```
+
+### Never import from `conftest.py`
+
+`from tests.conftest import DEFAULT_PASSWORD` is wrong, even though it works.
+
+`conftest.py` is pytest's own file: pytest discovers and imports it by itself,
+per directory, before collection. It is the one module in the suite that is
+never imported by name. Importing it anyway causes real problems, not just
+stylistic ones:
+
+- **A second copy.** Pytest loads it under an internal module name; your
+  `import` loads it again as `tests.conftest`. Module-level state - an engine,
+  a cache, a counter - then exists twice, and the copy the fixtures use is not
+  the copy the tests read.
+- **Import order becomes load-bearing.** Constants defined next to fixtures get
+  evaluated at a moment nothing in the suite controls.
+- **The layers get tangled.** A unit test that imports `conftest` transitively
+  imports the database engine and the FastAPI app - so "no database" stops
+  being true for the whole file, and §3's split quietly stops holding.
+
+So `conftest.py` contains **fixtures and hooks, nothing importable**. Anything
+a test needs by name goes to one of the two modules next to it:
+
+| Kind | Home | Examples |
+|---|---|---|
+| Behaviour - functions, dataclasses, builders | `tests/helpers.py` | `auth_headers()`, `auto_test_login()`, `RegisteredUser` |
+| Data - payloads, cases, expected values | `tests/test_data/` | `USER_READ_FIELDS`, `DEFAULT_PASSWORD`, the Revolut case lists |
+
+A fixture is then a thin wrapper: it takes the helper and the data and wires
+them to pytest. The helper stays callable outside any fixture, which is what
+makes it usable from a unit test that wants no fixtures at all.
+
+The rule has a useful side effect: `grep -rn "from tests.conftest" tests/` must
+return nothing. If it returns a line, something importable has drifted back
+into the fixture file.
+
+---
+
+## 9. Checklist
 
 1. Analyse real data; list the distinct behaviours it contains.
 2. Add one case per behaviour, one per past bug, one per defensive guard.
@@ -215,5 +271,7 @@ name the gap if you choose to accept it).
 5. Isolate with transaction rollback; never write a delete.
 6. Anonymise anything derived from real data.
 7. Name each case after the behaviour it protects.
-8. **Break the code and confirm the right test fails.** Write down any gap you
+8. Put helpers in `tests/helpers.py` and data in `tests/test_data/` - never
+   import from `conftest.py`.
+9. **Break the code and confirm the right test fails.** Write down any gap you
    decide to accept.

@@ -9,9 +9,62 @@ from app.core.exceptions import AppError
 
 logger = structlog.get_logger(__name__)
 
+REDACTED = "[redacted]"
+
+# Field names whose *value* is a credential. Pydantic puts the rejected value
+# in `input`, so "password must be at least 5 characters" would otherwise log
+# and return the plaintext password the caller just tried.
+#
+# `loc` is not enough to find it. When a *different* field is the one that
+# failed - a missing `login`, say - pydantic reports `loc: ("login",)` and puts
+# the **whole request body** in `input`, password included. So the values are
+# scrubbed by key wherever they sit, not only when `loc` names them.
+SENSITIVE_FIELDS = frozenset(
+    {
+        "password",
+        "hashed_password",
+        "token",
+        "access_token",
+        "refresh_token",
+        "secret_key",
+        "authorization",
+    }
+)
+
 
 def _request_id(request: Request) -> str | None:
     return getattr(request.state, "request_id", None)
+
+
+def _scrub(value):
+    """Replace every value stored under a sensitive key, at any depth."""
+    if isinstance(value, dict):
+        return {
+            key: REDACTED if str(key) in SENSITIVE_FIELDS else _scrub(inner)
+            for key, inner in value.items()
+        }
+    if isinstance(value, list):
+        return [_scrub(item) for item in value]
+    return value
+
+
+def redact_validation_errors(errors: list[dict]) -> list[dict]:
+    """Strip credential values out of pydantic's error list.
+
+    Applied before the errors are logged *and* before they are returned: the
+    same structure feeds both.
+    """
+    safe: list[dict] = []
+    for error in errors:
+        location = error.get("loc") or ()
+        if any(str(part) in SENSITIVE_FIELDS for part in location):
+            # The rejected value itself is the credential.
+            error = {**error, "input": REDACTED}
+        elif "input" in error:
+            # Some other field failed, but `input` may still carry the body.
+            error = {**error, "input": _scrub(error["input"])}
+        safe.append(error)
+    return safe
 
 
 def _error_response(
@@ -20,6 +73,7 @@ def _error_response(
     message: str,
     request: Request,
     details: dict | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
@@ -29,6 +83,7 @@ def _error_response(
             "request_id": _request_id(request),
             "details": jsonable_encoder(details) if details else None,
         },
+        headers=headers,
     )
 
 
@@ -40,8 +95,16 @@ def register_exception_handlers(app: FastAPI) -> None:
             logger.error("http.app_error", exc_info=exc, **exc.log_fields())
         else:
             logger.warning("http.app_error", **exc.log_fields())
+        headers = (
+            {"WWW-Authenticate": "Bearer"} if exc.http_status == 401 else None
+        )
         return _error_response(
-            exc.http_status, exc.code, exc.message, request, exc.context
+            exc.http_status,
+            exc.code,
+            exc.message,
+            request,
+            exc.context,
+            headers,
         )
 
     @app.exception_handler(HTTPException)
@@ -60,13 +123,14 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def handle_validation_error(
         request: Request, exc: RequestValidationError
     ):
-        logger.warning("http.request_invalid", errors=exc.errors())
+        errors = redact_validation_errors(exc.errors())
+        logger.warning("http.request_invalid", errors=errors)
         return _error_response(
             422,
             ErrorCode.REQUEST_VALIDATION_FAILED,
             "Request validation failed",
             request,
-            {"errors": exc.errors()},
+            {"errors": errors},
         )
 
     @app.exception_handler(Exception)

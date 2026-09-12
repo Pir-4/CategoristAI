@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.routing import APIRouter
 
 from app.api.dependencies import check_admin_permission, get_current_user
 from app.core import AsyncSession, get_session
+from app.core.exceptions import UserNotFoundError
 from app.models import User
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.services.user_service import (
@@ -47,9 +48,7 @@ async def get_user(
 ) -> UserRead:
     user = await svc_get_user(session=session, user_id=user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+        raise UserNotFoundError(user_id=str(user_id))
     return UserRead.model_validate(user)
 
 

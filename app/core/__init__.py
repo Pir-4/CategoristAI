@@ -12,31 +12,47 @@ from app.core.constants import (
     UserRole,
 )
 from app.core.database import get_session
-from app.core.exceptions import AppError, RowError, UploadError
-from app.core.logging import configure_third_party_loggers, setup_logging
+from app.core.exceptions import AppError, AuthError, RowError, UploadError
+from app.core.logging import (
+    configure_third_party_loggers,
+    elapsed_ms,
+    fingerprint,
+    setup_logging,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     create_token_expires_at,
     decode_access_token,
+    burn_password_time,
+    burn_password_time_async,
     hash_password,
+    hash_password_async,
     verify_password,
+    verify_password_async,
 )
 
 __all__ = [
     "settings",
     "get_session",
+    "burn_password_time",
+    "burn_password_time_async",
     "hash_password",
+    "hash_password_async",
     "verify_password",
+    "verify_password_async",
     "create_access_token",
     "decode_access_token",
     "create_refresh_token",
     "create_token_expires_at",
+    "elapsed_ms",
+    "fingerprint",
     "setup_logging",
     "configure_third_party_loggers",
     "AsyncSession",
     "AppMode",
     "AppError",
+    "AuthError",
     "ErrorCode",
     "LogFormat",
     "RowError",

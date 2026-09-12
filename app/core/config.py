@@ -1,13 +1,17 @@
 import logging
+from pathlib import Path
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .constants import AppMode, LogFormat
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = BASE_DIR / ".env"
+
 
 class AppBaseSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
 
 class DataBaseSettings(AppBaseSettings):
@@ -31,9 +35,7 @@ class ProjectSettings(AppBaseSettings):
 class LoggingSettings(AppBaseSettings):
     """Everything here is optional: None means "derive from app_mode"."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env", extra="ignore", env_prefix="log_"
-    )
+    model_config = SettingsConfigDict(env_prefix="log_")
 
     level: str | None = None
     format: LogFormat | None = None
@@ -61,9 +63,7 @@ class LoggingSettings(AppBaseSettings):
 
 
 class UploadSettings(AppBaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", extra="ignore", env_prefix="upload_"
-    )
+    model_config = SettingsConfigDict(env_prefix="upload_")
 
     max_bytes: int = 20_000_000
     max_issues_in_response: int = 200

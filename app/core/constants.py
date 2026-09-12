@@ -15,7 +15,6 @@ class ErrorCode(StrEnum):
     """Stable machine-readable ids returned to the client and logged."""
 
     # --- file level: nothing can be imported ---
-    ACCOUNT_NOT_FOUND = auto()
     UNSUPPORTED_INSTITUTION = auto()
     EMPTY_CSV_FILE = auto()
     CSV_DECODE_FAILED = auto()
@@ -37,6 +36,25 @@ class ErrorCode(StrEnum):
     DUPLICATE_TRANSACTION = auto()
     TRANSACTION_PERSIST_FAILED = auto()
     DUPLICATE_IDENTITY_IN_BATCH = auto()
+
+    # --- accounts ---
+    ACCOUNT_NOT_FOUND = auto()
+    ACCOUNT_NAME_ALREADY_TAKEN = auto()
+
+    # --- transactions ---
+    TRANSACTION_NOT_FOUND = auto()
+    TRANSACTION_CATEGORY_NOT_FOUND = auto()
+
+    # --- authentication / authorisation ---
+    INVALID_CREDENTIALS = auto()
+    INVALID_TOKEN = auto()
+    TOKEN_EXPIRED = auto()
+    REFRESH_TOKEN_INVALID = auto()
+    PERMISSION_DENIED = auto()
+
+    # --- users ---
+    USER_NOT_FOUND = auto()
+    LOGIN_ALREADY_TAKEN = auto()
 
     # --- generic ---
     HTTP_ERROR = auto()
